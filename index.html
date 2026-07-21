@@ -1,0 +1,343 @@
+﻿<!doctype html>
+<html lang="cs">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Výkoňák">
+    <title>Výkoňák</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icon-192.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="stylesheet" href="styles.css?v=74">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="title-block">
+          <p class="eyebrow">Rozdělení výkonu</p>
+          <h1>Výkoňák</h1>
+        </div>
+        <div class="topbar-actions">
+          <span class="app-version">v7.4</span>
+          <div class="company-mark" aria-label="SOLEA výrobní družstvo">
+            <strong>SOLEA</strong>
+            <span>výrobní družstvo</span>
+          </div>
+          <button class="icon-button" id="resetApp" type="button" aria-label="Vymazat vše">
+            <span aria-hidden="true">x</span>
+          </button>
+        </div>
+      </header>
+
+      <main>
+        <div class="date-strip" id="todayInfo">Dnes</div>
+
+        <section class="panel summary-panel" aria-live="polite">
+          <div>
+            <span class="label">Výroba celkem</span>
+            <strong id="totalPieces">0 ks</strong>
+          </div>
+          <div>
+            <span class="label">Kapacita party</span>
+            <strong id="totalCapacity">0 ks</strong>
+          </div>
+          <div>
+            <span class="label">Rozdíl</span>
+            <strong id="capacityDelta">0 ks</strong>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="section-head">
+            <div>
+              <h2>Parta</h2>
+              <p>Kusy za hodinu a délka směny určí cíl každého člověka.</p>
+            </div>
+            <div class="section-tools">
+              <button class="icon-button help-button" id="openHelp" type="button" aria-label="Otevřít nápovědu">
+                <span aria-hidden="true">?</span>
+              </button>
+              <button class="text-button" id="addPerson" type="button">Přidat člověka</button>
+            </div>
+          </div>
+          <div class="people-header" aria-hidden="true">
+            <span>Jméno</span>
+            <span>Ks/h</span>
+            <span>Hod.</span>
+            <span>Pevné</span>
+            <span>Zbytky</span>
+            <span></span>
+          </div>
+          <div class="rows" id="peopleRows"></div>
+        </section>
+
+        <section class="panel product-panel" id="productPanel">
+          <div class="section-head">
+            <div>
+              <h2>Výroba</h2>
+              <p>Název může být C, R, L, doplněno nebo cokoliv, důležitý je počet kusů.</p>
+            </div>
+            <div class="section-actions">
+              <div class="inline-total">
+                <span>Celkem</span>
+                <strong id="productTotal">0 ks</strong>
+              </div>
+              <label class="color-picker" aria-label="Barva výroby">
+                <span>Barva</span>
+                <select id="productionColor">
+                  <option value="">Obecné</option>
+                  <option value="green-ul">UL zelené</option>
+                  <option value="blue">Modré</option>
+                  <option value="yellow">Žluté</option>
+                  <option value="gold">Zlaté</option>
+                  <option value="orange">Oranžové</option>
+                  <option value="pink">Růžové</option>
+                </select>
+              </label>
+              <button class="icon-action calc-action" id="standaloneCalc" type="button" aria-label="Kalkulačka" title="Kalkulačka">
+                <span class="calc-glyph" aria-hidden="true"></span>
+              </button>
+              <button class="icon-action add-action" id="addProduct" type="button" aria-label="Přidat výrobu" title="Přidat výrobu">
+                <span aria-hidden="true">+</span>
+              </button>
+            </div>
+          </div>
+          <div class="rows" id="productRows"></div>
+          <details class="quick-import">
+            <summary>Napsat výrobu ručně</summary>
+            <label>
+              <span>Vzor: jeden řádek = název a počet</span>
+              <textarea id="quickProducts" rows="5" placeholder="C - 80&#10;R 168&#10;L: 308"></textarea>
+            </label>
+            <div class="quick-actions">
+              <button class="text-button" id="appendQuickProducts" type="button">Přidat k výrobě</button>
+              <button class="text-button" id="replaceQuickProducts" type="button">Nahradit výrobu</button>
+            </div>
+          </details>
+        </section>
+
+        <section class="panel">
+          <div class="section-head">
+            <div>
+              <h2>Nastavení</h2>
+              <p>Pro první verzi je hlavní minimalizovat vypisování bez ztráty kusů.</p>
+            </div>
+          </div>
+          <div class="settings-grid">
+            <label>
+              <span>Max. řádků pro běžného člověka</span>
+              <select id="maxRows">
+                <option value="1">1 řádek</option>
+                <option value="2" selected>2 řádky</option>
+                <option value="3">3 řádky</option>
+              </select>
+            </label>
+            <label>
+              <span>Nejmenší rozumný zápis</span>
+              <select id="minRecordHours">
+                <option value="0.25">0,25 hodiny</option>
+                <option value="0.5" selected>0,5 hodiny</option>
+                <option value="1">1 hodina</option>
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <section class="panel results-panel">
+          <div class="section-head">
+            <div>
+              <h2>Výsledek</h2>
+              <p>Řádky jsou navržené tak, aby součet přesně seděl na zadanou výrobu.</p>
+            </div>
+            <div class="result-actions">
+              <button class="primary-button calculate-button" id="calculate" type="button">
+                <span>Spočítat</span>
+                <span class="refresh-mark" aria-hidden="true">↻</span>
+              </button>
+            </div>
+          </div>
+          <div id="warnings" class="warnings" hidden></div>
+          <div id="results" class="results-empty">Zadej partu a výrobu, potom stiskni Spočítat.</div>
+          <div class="record-tools">
+            <button class="text-button" id="saveRecord" type="button">Uložit</button>
+            <button class="text-button" id="loadRecord" type="button">Načíst</button>
+          </div>
+        </section>
+      </main>
+
+      <nav class="mobile-actions" aria-label="Rychle akce">
+        <button class="install-button" id="installApp" type="button" hidden>Instalovat</button>
+        <button class="primary-button calculate-button" id="calculateBottom" type="button">
+          <span>Spočítat</span>
+          <span class="refresh-mark" aria-hidden="true">↻</span>
+        </button>
+      </nav>
+    </div>
+
+    <template id="personTemplate">
+      <article class="entry-card person-card">
+        <div class="entry-grid people-grid">
+          <label class="name-field">
+            <span>Jméno</span>
+            <input data-field="name" type="text" autocomplete="off" placeholder="Jméno">
+            <div class="name-suggestions" hidden></div>
+          </label>
+          <label>
+            <span>Ks/h</span>
+            <input data-field="rate" type="number" inputmode="decimal" min="0" step="0.5" placeholder="Ks/h">
+          </label>
+          <label>
+            <span>Hodiny</span>
+            <input data-field="hours" type="number" inputmode="decimal" min="0" step="0.25" placeholder="H">
+          </label>
+          <label>
+            <span>Pevné kusy</span>
+            <input data-field="fixedPieces" type="number" inputmode="numeric" min="0" step="1" placeholder="Fix">
+          </label>
+          <label class="keeper-toggle">
+            <input data-field="keeper" type="checkbox">
+            <span>Zbytky</span>
+          </label>
+          <button class="icon-button remove-row" type="button" aria-label="Odebrat člověka">
+            <span aria-hidden="true">x</span>
+          </button>
+        </div>
+      </article>
+    </template>
+
+    <template id="productTemplate">
+      <article class="entry-card product-card">
+        <div class="entry-grid product-grid">
+          <label>
+            <span>Výrobek</span>
+            <input data-field="name" type="text" autocomplete="off" placeholder="Výrobek">
+          </label>
+          <button class="calc-open" type="button" aria-label="Otevřít kalkulačku">
+            <span aria-hidden="true">=</span>
+          </button>
+          <button class="info-toggle" type="button" aria-label="Otevřít poznámku">
+            <span aria-hidden="true">i</span>
+          </button>
+          <label>
+            <span>Kusů</span>
+            <input data-field="pieces" type="number" inputmode="numeric" min="0" step="1" placeholder="Kusů">
+          </label>
+          <button class="icon-button remove-row" type="button" aria-label="Odebrat výrobu">
+            <span aria-hidden="true">x</span>
+          </button>
+        </div>
+        <div class="product-info">
+          <label class="info-combo">
+            <span>Info</span>
+            <span class="info-combo-control">
+              <select data-field="noteType" aria-label="Info výroby">
+                <option value="">Celé</option>
+                <option value="doplneno">Doplněno</option>
+                <option value="rozpracovana">Rozprac.</option>
+              </select>
+            </span>
+          </label>
+          <div class="product-breakdown" aria-live="polite"></div>
+        </div>
+        <label class="product-note">
+          <span>Poznámka</span>
+          <input data-field="note" type="text" autocomplete="off" placeholder="volitelná textová poznámka">
+        </label>
+      </article>
+    </template>
+
+    <div class="calc-sheet" id="calcSheet" hidden>
+      <div class="calc-backdrop" data-calc-close></div>
+      <section class="calc-panel" aria-label="Kalkulačka kusů">
+        <div class="calc-head">
+          <strong>Kalkulačka kusů</strong>
+          <button class="icon-button" id="calcClose" type="button" aria-label="Zavřít kalkulačku">
+            <span aria-hidden="true">x</span>
+          </button>
+        </div>
+        <input id="calcExpression" class="calc-display" type="text" inputmode="none" autocomplete="off" placeholder="3x168+80" readonly>
+        <div class="calc-result" id="calcResult">0 ks</div>
+        <div class="calc-keys">
+          <button type="button" data-calc-key="7">7</button>
+          <button type="button" data-calc-key="8">8</button>
+          <button type="button" data-calc-key="9">9</button>
+          <button type="button" data-calc-key="/">/</button>
+          <button type="button" data-calc-key="4">4</button>
+          <button type="button" data-calc-key="5">5</button>
+          <button type="button" data-calc-key="6">6</button>
+          <button type="button" data-calc-key="*">x</button>
+          <button type="button" data-calc-key="1">1</button>
+          <button type="button" data-calc-key="2">2</button>
+          <button type="button" data-calc-key="3">3</button>
+          <button type="button" data-calc-key="-">-</button>
+          <button type="button" data-calc-key="0">0</button>
+          <button type="button" data-calc-key=".">,</button>
+          <button type="button" data-calc-clear>C</button>
+          <button type="button" data-calc-key="+">+</button>
+        </div>
+        <div class="calc-actions">
+          <button class="text-button" id="calcBackspace" type="button">Smazat</button>
+          <button class="primary-button" id="calcApply" type="button">Vložit</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="record-sheet" id="recordSheet" hidden>
+      <div class="record-backdrop" data-record-close></div>
+      <section class="record-panel" aria-label="Uložené záznamy">
+        <div class="record-head">
+          <strong>Uložené záznamy</strong>
+          <button class="icon-button" id="recordClose" type="button" aria-label="Zavřít záznamy">
+            <span aria-hidden="true">x</span>
+          </button>
+        </div>
+        <div id="recordList" class="record-list"></div>
+      </section>
+    </div>
+
+    <div class="help-sheet" id="helpSheet" hidden>
+      <div class="help-backdrop" data-help-close></div>
+      <section class="help-panel" aria-label="Nápověda">
+        <div class="help-head">
+          <strong>Nápověda</strong>
+          <button class="icon-button" id="helpClose" type="button" aria-label="Zavřít nápovědu">
+            <span aria-hidden="true">x</span>
+          </button>
+        </div>
+        <div class="help-content">
+          <h3>Postup</h3>
+          <ol>
+            <li>Nejdřív vyplň partu: kdo pracuje, kolik má kusů za hodinu a kolik hodin je ve směně.</li>
+            <li>Pokud má někdo dostat přesný počet kusů, napiš ho do políčka Pevné.</li>
+            <li>Označ Zbytky u člověka, který může dostat rozdělané výrobky nebo více řádků.</li>
+            <li>Do výroby napiš výrobek a počet kusů. Součet nahoře musí odpovídat tomu, co se opravdu vyrobilo.</li>
+            <li>Stiskni Spočítat. Když se ukáže značka obnovy, můžeš stisknout znovu a zkusit další variantu.</li>
+            <li>Vyber výsledek, který je nejjednodušší na zapsání do výkoňáku.</li>
+          </ol>
+
+          <h3>Parta</h3>
+          <p><strong>Jméno</strong> je člověk ve směně. Při psaní se nabídnou uložená příjmení.</p>
+          <p><strong>Ks/h</strong> je výkon člověka za hodinu. <strong>Hod.</strong> je délka směny.</p>
+          <p><strong>Pevné</strong> použij hlavně u nováčků nebo lidí, kteří mají předem daný počet kusů.</p>
+          <p><strong>Zbytky</strong> použij u člověka, který si může vzít rozdělané kusy nebo více výrobků.</p>
+
+          <h3>Výroba</h3>
+          <p><strong>Výrobek</strong> je název, třeba C, R nebo L. <strong>Kusů</strong> je celkový počet daného výrobku.</p>
+          <p>Tlačítko <strong>=</strong> otevře kalkulačku pro počet kusů. Tlačítko <strong>i</strong> otevře poznámku.</p>
+          <p><strong>Celé</strong> znamená celé bedny. <strong>Doplněno</strong> je začátek směny, kdy se dodělává rozpracovaná bedna. <strong>Rozprac.</strong> je konec směny, kdy něco zůstalo v bedně.</p>
+
+          <h3>Nastavení a uložení</h3>
+          <p><strong>Max. řádků</strong> omezuje, kolik různých řádků má běžný člověk dostat. Menší počet znamená méně vypisování.</p>
+          <p><strong>Nejmenší rozumný zápis</strong> pomáhá zabránit zbytečně malým řádkům.</p>
+          <p><strong>Uložit</strong> uloží aktuální výpočet. <strong>Načíst</strong> otevře starší uložené výpočty.</p>
+        </div>
+      </section>
+    </div>
+
+    <script src="app.js?v=74" defer></script>
+  </body>
+</html>
+
