@@ -1,0 +1,31 @@
+{
+  "name": "V\u00fdko\u0148\u00e1k",
+  "short_name": "V\u00fdko\u0148\u00e1k",
+  "description": "Offline kalkul\u00e1tor pro rozd\u011blen\u00ed v\u00fdroby do v\u00fdko\u0148\u00e1ku.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#eef2f7",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
