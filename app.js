@@ -225,13 +225,14 @@
   });
 
   els.productionColor.addEventListener("change", () => {
-    const previous = state.settings.productionColor || "";
+    const previous = normalizeProductionColor(state.settings.productionColor || "");
     state.settings.productionColor = els.productionColor.value;
-    if (state.settings.productionColor === "green-ul") {
+    const current = normalizeProductionColor(state.settings.productionColor || "");
+    if (isUlProductionColor(current)) {
       state.products.forEach((product) => {
         if (!product.pieces || product.pieces === 168) product.pieces = 180;
       });
-    } else if (previous === "green-ul") {
+    } else if (isUlProductionColor(previous)) {
       state.products.forEach((product) => {
         if (product.pieces === 180) product.pieces = 168;
       });
@@ -448,7 +449,7 @@
 
   function defaultBoxPieces() {
     const color = normalizeProductionColor(state.settings.productionColor || "");
-    return ["green-ul", "bordeaux"].includes(color) ? 180 : 168;
+    return isUlProductionColor(color) ? 180 : 168;
   }
 
   function fillProductInfoPieces(product, force = false) {
@@ -525,6 +526,10 @@
   function normalizeProductionColor(color) {
     if (color === "gold") return "honey";
     return color || "";
+  }
+
+  function isUlProductionColor(color) {
+    return ["green-ul", "honey", "bordeaux"].includes(normalizeProductionColor(color));
   }
 
   function migrateProductNote(product) {
