@@ -1,13 +1,14 @@
-const CACHE_NAME = "vykonak-kalkulator-v82";
+const CACHE_NAME = "vykonak-kalkulator-v83";
 const ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=82",
-  "./app.js?v=82",
+  "./styles.css?v=83",
+  "./app.js?v=83",
   "./manifest.webmanifest",
   "./icon.svg",
   "./icon-192.png",
-  "./icon-512.png"
+  "./icon-512.png",
+  "./solea-heart.svg"
 ];
 
 self.addEventListener("install", (event) => {
