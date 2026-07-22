@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="icon-192.png">
     <link rel="apple-touch-icon" href="icon-192.png">
-    <link rel="stylesheet" href="styles.css?v=79">
+    <link rel="stylesheet" href="styles.css?v=80">
   </head>
   <body>
     <div class="app-shell">
@@ -21,7 +21,7 @@
           <h1>Výkoňák</h1>
         </div>
         <div class="topbar-actions">
-          <span class="app-version">v7.9</span>
+          <span class="app-version">v8.0</span>
           <div class="company-mark" aria-label="SOLEA výrobní družstvo">
             <strong>SOLEA</strong>
             <span>výrobní družstvo</span>
@@ -57,10 +57,14 @@
               <p>Kusy za hodinu a délka směny určí cíl každého člověka.</p>
             </div>
             <div class="section-tools">
-              <button class="icon-button help-button" id="openHelp" type="button" aria-label="Otevřít nápovědu">
-                <span aria-hidden="true">?</span>
+              <button class="action-button help-button" id="openHelp" type="button" aria-label="Otevřít nápovědu">
+                <span class="action-icon" aria-hidden="true">?</span>
+                <span>Nápověda</span>
               </button>
-              <button class="text-button" id="addPerson" type="button">Přidat člověka</button>
+              <button class="action-button" id="addPerson" type="button">
+                <span class="action-icon" aria-hidden="true">+</span>
+                <span>Přidat člověka</span>
+              </button>
             </div>
           </div>
           <div class="people-header" aria-hidden="true">
@@ -90,20 +94,29 @@
                 <select id="productionColor">
                   <option value="">Obecné</option>
                   <option value="green-ul">UL zelené</option>
+                  <option value="honey">UL zlaté</option>
+                  <option value="bordeaux">UL bordó</option>
                   <option value="blue">Modré</option>
                   <option value="yellow">Žluté</option>
-                  <option value="honey">UL zlaté</option>
                   <option value="orange">Oranžové</option>
                   <option value="pink">Růžové</option>
-                  <option value="bordeaux">UL bordó</option>
                 </select>
               </label>
               <button class="icon-action calc-action" id="standaloneCalc" type="button" aria-label="Kalkulačka" title="Kalkulačka">
                 <span class="calc-glyph" aria-hidden="true"></span>
               </button>
-              <button class="icon-action add-action" id="addProduct" type="button" aria-label="Přidat výrobu" title="Přidat výrobu">
-                <span aria-hidden="true">+</span>
-              </button>
+              <div class="add-product-wrap">
+                <button class="action-button add-action" id="addProduct" type="button" aria-expanded="false" aria-controls="productPicker">
+                  <span class="action-icon" aria-hidden="true">+</span>
+                  <span>Přidat výrobu</span>
+                </button>
+                <div class="product-picker" id="productPicker" hidden>
+                  <button type="button" data-product-choice="C">C</button>
+                  <button type="button" data-product-choice="R">R</button>
+                  <button type="button" data-product-choice="L">L</button>
+                  <button type="button" data-product-choice="">Jiné</button>
+                </div>
+              </div>
             </div>
           </div>
           <div class="rows" id="productRows"></div>
@@ -339,7 +352,7 @@
       </section>
     </div>
 
-    <script src="app.js?v=79" defer></script>
+    <script src="app.js?v=80" defer></script>
   </body>
 </html>
 

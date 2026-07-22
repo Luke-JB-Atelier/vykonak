@@ -104,6 +104,7 @@
     capacityDelta: document.querySelector("#capacityDelta"),
     productPanel: document.querySelector("#productPanel"),
     productionColor: document.querySelector("#productionColor"),
+    productPicker: document.querySelector("#productPicker"),
     maxRows: document.querySelector("#maxRows"),
     minRecordHours: document.querySelector("#minRecordHours"),
     warnings: document.querySelector("#warnings"),
@@ -140,8 +141,19 @@
   });
 
   document.querySelector("#addProduct").addEventListener("click", () => {
-    state.products.push({ id: uid(), name: "", pieces: defaultBoxPieces(), noteType: "", notePieces: 0, note: "" });
-    render();
+    toggleProductPicker();
+  });
+
+  els.productPicker.addEventListener("click", (event) => {
+    const choice = event.target.closest("[data-product-choice]");
+    if (!choice) return;
+    addProductRow(choice.dataset.productChoice || "");
+    closeProductPicker();
+  });
+
+  document.addEventListener("click", (event) => {
+    if (event.target.closest("#addProduct") || event.target.closest("#productPicker")) return;
+    closeProductPicker();
   });
 
   document.querySelector("#appendQuickProducts").addEventListener("click", () => {
@@ -430,6 +442,23 @@
 
       els.productRows.append(node);
     });
+  }
+
+  function addProductRow(name = "") {
+    state.products.push({ id: uid(), name, pieces: defaultBoxPieces(), noteType: "", notePieces: 0, note: "" });
+    render();
+  }
+
+  function toggleProductPicker() {
+    const isOpen = !els.productPicker.hidden;
+    els.productPicker.hidden = isOpen;
+    document.querySelector("#addProduct").setAttribute("aria-expanded", String(!isOpen));
+  }
+
+  function closeProductPicker() {
+    if (els.productPicker.hidden) return;
+    els.productPicker.hidden = true;
+    document.querySelector("#addProduct").setAttribute("aria-expanded", "false");
   }
 
   function applyProductionColor() {
