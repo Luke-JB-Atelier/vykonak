@@ -436,16 +436,19 @@
       "product-color-green-ul",
       "product-color-blue",
       "product-color-yellow",
+      "product-color-honey",
       "product-color-gold",
       "product-color-orange",
-      "product-color-pink"
+      "product-color-pink",
+      "product-color-bordeaux"
     );
-    const color = state.settings.productionColor || "";
+    const color = normalizeProductionColor(state.settings.productionColor || "");
     if (color) els.productPanel.classList.add(`product-color-${color}`);
   }
 
   function defaultBoxPieces() {
-    return state.settings.productionColor === "green-ul" ? 180 : 168;
+    const color = normalizeProductionColor(state.settings.productionColor || "");
+    return ["green-ul", "bordeaux"].includes(color) ? 180 : 168;
   }
 
   function fillProductInfoPieces(product, force = false) {
@@ -506,6 +509,7 @@
       const colored = (data.products || []).find((product) => product.color);
       data.settings.productionColor = colored ? colored.color : "";
     }
+    data.settings.productionColor = normalizeProductionColor(data.settings.productionColor || "");
     data.products = (data.products || []).map((product) => {
       const { color, ...rest } = product;
       if (rest.name === "C doplneno") rest.name = "C doplněno";
@@ -516,6 +520,11 @@
       ...person,
       name: person.name === "Ja" ? "Já" : person.name
     }));
+  }
+
+  function normalizeProductionColor(color) {
+    if (color === "gold") return "honey";
+    return color || "";
   }
 
   function migrateProductNote(product) {

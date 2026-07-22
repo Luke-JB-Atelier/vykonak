@@ -1,9 +1,9 @@
-const CACHE_NAME = "vykonak-kalkulator-v75";
+const CACHE_NAME = "vykonak-kalkulator-v76";
 const ASSETS = [
   "./",
   "./index.html",
-  "./styles.css?v=75",
-  "./app.js?v=75",
+  "./styles.css?v=76",
+  "./app.js?v=76",
   "./manifest.webmanifest",
   "./icon.svg",
   "./icon-192.png",

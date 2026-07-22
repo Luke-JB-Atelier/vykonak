@@ -274,6 +274,7 @@ label span {
   --product-bg: #fcfde8;
 }
 
+.product-color-honey,
 .product-color-gold {
   --product-color: #d9a21b;
   --product-bg: #fff8e6;
@@ -287,6 +288,11 @@ label span {
 .product-color-pink {
   --product-color: #f36fa8;
   --product-bg: #fff0f6;
+}
+
+.product-color-bordeaux {
+  --product-color: #8f1d3d;
+  --product-bg: #fff0f3;
 }
 
 .entry-grid {
