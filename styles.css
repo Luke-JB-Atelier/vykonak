@@ -78,12 +78,27 @@ button {
 }
 
 .company-mark {
+  position: relative;
   display: grid;
   justify-items: end;
   gap: 1px;
   color: #075678;
   line-height: 1;
   text-align: right;
+  isolation: isolate;
+}
+
+.company-mark::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  right: -18px;
+  top: -26px;
+  width: 94px;
+  height: 90px;
+  background: url("solea-heart-blue.png") center / contain no-repeat;
+  opacity: 0.16;
+  pointer-events: none;
 }
 
 .company-mark strong {
