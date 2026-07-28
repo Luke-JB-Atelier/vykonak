@@ -381,7 +381,7 @@ label span {
 }
 
 .people-grid {
-  grid-template-columns: minmax(120px, 1.3fr) minmax(78px, 0.65fr) minmax(78px, 0.65fr) minmax(86px, 0.65fr) minmax(122px, 0.75fr) 42px;
+  grid-template-columns: minmax(110px, 1.18fr) minmax(92px, 0.72fr) minmax(76px, 0.58fr) minmax(86px, 0.62fr) minmax(86px, 0.62fr) minmax(116px, 0.76fr) 42px;
 }
 
 .name-field {
@@ -843,9 +843,15 @@ textarea {
   padding-top: 12px;
 }
 
+.quick-import-top {
+  margin-top: 10px;
+  border-top: 0;
+  padding-top: 0;
+}
+
 .people-header {
   display: grid;
-  grid-template-columns: minmax(120px, 1.3fr) minmax(78px, 0.65fr) minmax(78px, 0.65fr) minmax(86px, 0.65fr) minmax(122px, 0.75fr) 42px;
+  grid-template-columns: minmax(110px, 1.18fr) minmax(92px, 0.72fr) minmax(76px, 0.58fr) minmax(86px, 0.62fr) minmax(86px, 0.62fr) minmax(116px, 0.76fr) 42px;
   gap: 10px;
   margin-bottom: 6px;
   padding: 0 10px;
@@ -861,6 +867,14 @@ textarea {
 
 .people-header span:first-child {
   text-align: left;
+}
+
+.capacity-hint {
+  grid-column: 1 / -1;
+  min-height: 18px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
 }
 
 .quick-import summary {
@@ -1478,8 +1492,23 @@ textarea {
   }
 
   .people-grid {
-    grid-template-columns: minmax(86px, 1.2fr) minmax(43px, 0.48fr) minmax(34px, 0.38fr) minmax(48px, 0.5fr) minmax(43px, 0.42fr) 30px;
+    grid-template-columns: minmax(86px, 1fr) minmax(54px, 0.55fr) minmax(42px, 0.45fr) minmax(54px, 0.52fr) 30px;
     align-items: end;
+  }
+
+  .fixed-product-field {
+    grid-column: 1 / span 2;
+  }
+
+  .keeper-toggle {
+    grid-column: 3 / span 2;
+  }
+
+  .capacity-hint {
+    grid-column: 1 / -1;
+    min-height: 16px;
+    padding: 0 2px 2px;
+    font-size: 0.64rem;
   }
 
   .name-suggestions {
@@ -1491,10 +1520,7 @@ textarea {
   }
 
   .people-header {
-    grid-template-columns: minmax(82px, 1.14fr) minmax(42px, 0.46fr) minmax(42px, 0.44fr) minmax(48px, 0.5fr) minmax(52px, 0.5fr) 30px;
-    gap: 5px;
-    padding: 0 5px;
-    font-size: 0.56rem;
+    display: none;
   }
 
   .product-grid {

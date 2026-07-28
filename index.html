@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="icon-192.png">
     <link rel="apple-touch-icon" href="icon-192.png">
-    <link rel="stylesheet" href="styles.css?v=87">
+    <link rel="stylesheet" href="styles.css?v=88">
   </head>
   <body>
     <div class="app-shell">
@@ -22,7 +22,7 @@
           <h1>Výkoňák</h1>
         </div>
         <div class="topbar-actions">
-          <span class="app-version">v8.7</span>
+          <span class="app-version">v8.8</span>
           <div class="company-mark" aria-label="SOLEA výrobní družstvo">
             <strong>SOLEA</strong>
             <span>výrobní družstvo</span>
@@ -87,10 +87,11 @@
           </div>
           <div class="people-header" aria-hidden="true">
             <span>Jméno</span>
-            <span>Ks/h</span>
-            <span>Hod.</span>
-            <span>Pevné</span>
-            <span>Zbytky</span>
+            <span>Kusů za hodinu</span>
+            <span>Hodiny</span>
+            <span>Pevné ks</span>
+            <span>Pevná výroba</span>
+            <span>Beru zbytky</span>
             <span></span>
           </div>
           <div class="rows" id="peopleRows"></div>
@@ -101,6 +102,17 @@
             <div>
               <h2>Výroba</h2>
               <p>Název může být C, R, L, doplněno nebo cokoliv, důležitý je počet kusů.</p>
+              <details class="quick-import quick-import-top">
+                <summary>Napsat výrobu ručně</summary>
+                <label>
+                  <span>Vzor: jeden řádek = název a počet</span>
+                  <textarea id="quickProducts" rows="5" placeholder="C - 80&#10;R 168&#10;L: 308"></textarea>
+                </label>
+                <div class="quick-actions">
+                  <button class="text-button" id="appendQuickProducts" type="button">Přidat k výrobě</button>
+                  <button class="text-button" id="replaceQuickProducts" type="button">Nahradit výrobu</button>
+                </div>
+              </details>
             </div>
             <div class="section-actions">
               <div class="inline-total">
@@ -138,17 +150,6 @@
             </div>
           </div>
           <div class="rows" id="productRows"></div>
-          <details class="quick-import">
-            <summary>Napsat výrobu ručně</summary>
-            <label>
-              <span>Vzor: jeden řádek = název a počet</span>
-              <textarea id="quickProducts" rows="5" placeholder="C - 80&#10;R 168&#10;L: 308"></textarea>
-            </label>
-            <div class="quick-actions">
-              <button class="text-button" id="appendQuickProducts" type="button">Přidat k výrobě</button>
-              <button class="text-button" id="replaceQuickProducts" type="button">Nahradit výrobu</button>
-            </div>
-          </details>
         </section>
 
         <section class="panel">
@@ -218,7 +219,7 @@
             <div class="name-suggestions" hidden></div>
           </label>
           <label>
-            <span>Ks/h</span>
+            <span>Kusů za hodinu</span>
             <input data-field="rate" type="number" inputmode="decimal" min="0" step="0.5" placeholder="Ks/h">
           </label>
           <label>
@@ -229,13 +230,18 @@
             <span>Pevné kusy</span>
             <input data-field="fixedPieces" type="number" inputmode="numeric" min="0" step="1" placeholder="Fix">
           </label>
+          <label class="fixed-product-field">
+            <span>Pevná výroba</span>
+            <input data-field="fixedProduct" type="text" autocomplete="off" placeholder="Pevná výroba">
+          </label>
           <label class="keeper-toggle">
             <input data-field="keeper" type="checkbox">
-            <span>Zbytky</span>
+            <span>Beru zbytky</span>
           </label>
           <button class="icon-button remove-row" type="button" aria-label="Odebrat člověka">
             <span aria-hidden="true">x</span>
           </button>
+          <div class="capacity-hint" data-capacity-hint></div>
         </div>
       </article>
     </template>
@@ -383,7 +389,7 @@
       </section>
     </div>
 
-    <script src="app.js?v=87" defer></script>
+    <script src="app.js?v=88" defer></script>
   </body>
 </html>
 

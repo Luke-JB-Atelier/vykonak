@@ -4,10 +4,10 @@
 
   const state = loadState() || {
     people: [
-      { id: uid(), name: "Já", rate: 45, hours: 6, fixedPieces: 0, keeper: true },
-      { id: uid(), name: "Kolega 1", rate: 45, hours: 6, fixedPieces: 0, keeper: false },
-      { id: uid(), name: "Kolega 2", rate: 25, hours: 6, fixedPieces: 0, keeper: false },
-      { id: uid(), name: "Kolega 3", rate: 50, hours: 6, fixedPieces: 0, keeper: false }
+      { id: uid(), name: "Já", rate: 45, hours: 6, fixedPieces: 0, fixedProduct: "", keeper: true },
+      { id: uid(), name: "Kolega 1", rate: 45, hours: 6, fixedPieces: 0, fixedProduct: "", keeper: false },
+      { id: uid(), name: "Kolega 2", rate: 25, hours: 6, fixedPieces: 0, fixedProduct: "", keeper: false },
+      { id: uid(), name: "Kolega 3", rate: 50, hours: 6, fixedPieces: 0, fixedProduct: "", keeper: false }
     ],
     products: [
       { id: uid(), name: "", pieces: 0, noteType: "", notePieces: 0, note: "", color: "" }
@@ -143,7 +143,7 @@
   let calculationVariant = 0;
 
   document.querySelector("#addPerson").addEventListener("click", () => {
-    state.people.push({ id: uid(), name: "", rate: 45, hours: 6, fixedPieces: 0, keeper: false });
+    state.people.push({ id: uid(), name: "", rate: 45, hours: 6, fixedPieces: 0, fixedProduct: "", keeper: false });
     render();
   });
 
@@ -336,9 +336,12 @@
       setInput(node, "rate", person.rate);
       setInput(node, "hours", person.hours);
       setInput(node, "fixedPieces", person.fixedPieces || "");
+      setInput(node, "fixedProduct", person.fixedProduct || "");
       setInput(node, "keeper", person.keeper);
       const nameInput = node.querySelector('[data-field="name"]');
       const nameSuggestions = node.querySelector(".name-suggestions");
+      const capacityHint = node.querySelector("[data-capacity-hint]");
+      updateCapacityHint(capacityHint, person);
 
       node.addEventListener("input", (event) => {
         const field = event.target.dataset.field;
@@ -348,9 +351,12 @@
         } else if (field === "name") {
           person.name = event.target.value;
           renderNameSuggestions(nameInput, nameSuggestions, person);
+        } else if (field === "fixedProduct") {
+          person.fixedProduct = event.target.value;
         } else {
           person[field] = Number(event.target.value);
         }
+        updateCapacityHint(capacityHint, person);
         saveAndUpdateSummary();
       });
 
@@ -371,6 +377,27 @@
 
       els.peopleRows.append(node);
     });
+  }
+
+  function updateCapacityHint(container, person) {
+    if (!container) return;
+    const rate = numberOrZero(person.rate);
+    const hours = numberOrZero(person.hours);
+    const fixedPieces = Math.round(numberOrZero(person.fixedPieces));
+    const fixedProduct = String(person.fixedProduct || "").trim();
+    const parts = [];
+
+    if (fixedPieces > 0 && hours > 0) {
+      parts.push(`Pevné ${fixedPieces} ks = ${formatNumber(fixedPieces / hours)} ks/h při ${formatNumber(hours)} h`);
+    } else if (rate > 0 && hours > 0) {
+      parts.push(`Kapacita: ${formatNumber(rate)} ks/h x ${formatNumber(hours)} h = ${Math.round(rate * hours)} ks`);
+    }
+
+    if (fixedPieces > 0 && fixedProduct) {
+      parts.push(`pevná výroba ${fixedProduct}`);
+    }
+
+    container.textContent = parts.join(" | ");
   }
 
   function renderNameSuggestions(input, container, person) {
@@ -577,7 +604,8 @@
     });
     data.people = (data.people || []).map((person) => ({
       ...person,
-      name: person.name === "Ja" ? "Já" : person.name
+      name: person.name === "Ja" ? "Já" : person.name,
+      fixedProduct: person.fixedProduct || ""
     }));
   }
 
@@ -724,6 +752,7 @@
         rate: person.rate,
         hours: person.hours,
         fixedPieces: person.fixedPieces,
+        fixedProduct: person.fixedProduct,
         keeper: person.keeper
       })),
       products: state.products.map((product) => ({
@@ -762,6 +791,8 @@
 
     const inventory = orderProductsForVariant(products, variantIndex)
       .map((product) => ({ ...product, remaining: product.pieces }));
+
+    applyFixedProducts(assignments, inventory, warnings);
 
     const regularAssignments = orderAssignmentsForVariant(
       assignments.filter((item) => !item.person.keeper),
@@ -1154,11 +1185,33 @@
     return items.slice(offset).concat(items.slice(0, offset));
   }
 
+  function applyFixedProducts(assignments, inventory, warnings) {
+    assignments.forEach((assignment) => {
+      const fixedPieces = Math.round(numberOrZero(assignment.person.fixedPieces));
+      const fixedProduct = normalizeProductName(assignment.person.fixedProduct);
+      if (fixedPieces <= 0 || !fixedProduct) return;
+
+      const product = inventory.find((item) => normalizeProductName(item.name) === fixedProduct);
+      if (!product) {
+        warnings.push(`${assignment.person.name} má pevnou výrobu ${assignment.person.fixedProduct}, ale taková výroba není zadaná.`);
+        return;
+      }
+
+      const room = Math.max(0, assignment.target - assignment.assigned);
+      const amount = Math.min(product.remaining, fixedPieces, room);
+      if (amount > 0) addLine(assignment, product, amount);
+
+      if (amount < fixedPieces) {
+        warnings.push(`${assignment.person.name} má pevně ${fixedPieces} ks z ${assignment.person.fixedProduct}, ale dostupných je jen ${amount} ks.`);
+      }
+    });
+  }
+
   function fillPractical(assignment, inventory, maxRows, minPieces, variant = 0) {
     let rowsLeft = maxRows;
     while (rowsLeft > 0 && assignment.assigned < assignment.target) {
       const need = assignment.target - assignment.assigned;
-      const product = chooseBestProduct(inventory, need, minPieces, variant + rowsLeft);
+      const product = chooseBestProduct(inventory, need, minPieces, rowsLeft, variant + rowsLeft);
       if (!product) break;
       let amount = Math.min(product.remaining, need);
       const leftover = product.remaining - amount;
@@ -1277,6 +1330,7 @@
 
       const target = assignments.find((assignment) =>
         assignment !== source
+        && !hasFixedProductLock(assignment)
         && assignment.lines.some((line) =>
           line.product === sourceOther.product
           && line.pieces > tiny.pieces
@@ -1298,11 +1352,13 @@
     const candidates = [];
 
     assignments.forEach((source, sourceIndex) => {
+      if (hasFixedProductLock(source)) return;
       source.lines.forEach((sourceLine) => {
         if (sourceLine.pieces < minPiecesFor(source.person)) return;
 
         assignments.forEach((target, targetIndex) => {
           if (target === source) return;
+          if (hasFixedProductLock(target)) return;
 
           target.lines.forEach((targetLine) => {
             if (targetLine.product === sourceLine.product) return;
@@ -1396,6 +1452,7 @@
 
       const crowded = assignments
         .slice()
+        .filter((assignment) => !hasFixedProductLock(assignment))
         .sort((a, b) => linePenalty(b) - linePenalty(a));
 
       for (const source of crowded) {
@@ -1413,6 +1470,7 @@
         for (const sourceLine of sourceLines) {
           for (const target of assignments) {
             if (target === source) continue;
+            if (hasFixedProductLock(target)) continue;
             if (target.lines.some((line) => line.product === sourceLine.product)) continue;
 
             const targetLine = target.lines.find((line) =>
@@ -1504,13 +1562,20 @@
     return numberOrZero(assignment.person.fixedPieces) > 0;
   }
 
+  function hasFixedProductLock(assignment) {
+    return isFixedAssignment(assignment) && Boolean(normalizeProductName(assignment.person.fixedProduct));
+  }
+
   function canReceiveMovedLine(assignment, movedPieces) {
     return !isFixedAssignment(assignment) || assignment.assigned + movedPieces <= assignment.target;
   }
 
-  function chooseBestProduct(inventory, need, minPieces, variant = 0) {
+  function chooseBestProduct(inventory, need, minPieces, rowsLeft = 1, variant = 0) {
     const available = inventory.filter((item) => item.remaining > 0);
     if (!available.length) return null;
+
+    const wholeProduct = chooseWholeProductForMultiLine(available, need, minPieces, rowsLeft);
+    if (wholeProduct) return wholeProduct;
 
     const cleanSingle = available
       .filter((item) => item.remaining >= need && (item.remaining - need === 0 || item.remaining - need >= minPieces))
@@ -1521,6 +1586,21 @@
       .slice()
       .sort((a, b) => Math.abs(a.remaining - need) - Math.abs(b.remaining - need));
     return exactOrClose[variant % Math.min(exactOrClose.length, 3)] || exactOrClose[0];
+  }
+
+  function chooseWholeProductForMultiLine(available, need, minPieces, rowsLeft) {
+    if (rowsLeft <= 1) return null;
+    return available.find((item) => {
+      if (item.remaining >= need || item.remaining < minPieces) return false;
+      const restNeed = need - item.remaining;
+      if (restNeed <= 0) return false;
+      return available.some((other) => {
+        if (other === item) return false;
+        if (other.remaining < restNeed) return false;
+        const leftover = other.remaining - restNeed;
+        return leftover === 0 || leftover >= minPieces;
+      });
+    }) || null;
   }
 
   function addLine(assignment, product, pieces) {
@@ -1595,8 +1675,7 @@
   }
 
   function getVariantLabel(variant) {
-    if (variant === 1) return "Varianta 1 - nejpraktičtější";
-    return `Varianta ${variant} - alternativa`;
+    return `Varianta ${variant}`;
   }
 
   function renderWarnings(warnings) {
@@ -1629,6 +1708,7 @@
         rate: numberOrZero(person.rate),
         hours: numberOrZero(person.hours),
         fixedPieces: Math.round(numberOrZero(person.fixedPieces)),
+        fixedProduct: String(person.fixedProduct || "").trim(),
         capacity: Math.round(numberOrZero(person.rate) * numberOrZero(person.hours))
       }))
       .filter((person) => person.rate > 0 && person.hours > 0);
@@ -1649,6 +1729,10 @@
 
   function minPiecesFor(person) {
     return Math.max(1, Math.round(person.rate * state.settings.minRecordHours));
+  }
+
+  function normalizeProductName(value) {
+    return String(value || "").trim().toLocaleLowerCase("cs-CZ");
   }
 
   function setInput(root, field, value) {
