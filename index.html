@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="icon-192.png">
     <link rel="apple-touch-icon" href="icon-192.png">
-    <link rel="stylesheet" href="styles.css?v=86">
+    <link rel="stylesheet" href="styles.css?v=87">
   </head>
   <body>
     <div class="app-shell">
@@ -22,7 +22,7 @@
           <h1>Výkoňák</h1>
         </div>
         <div class="topbar-actions">
-          <span class="app-version">v8.6</span>
+          <span class="app-version">v8.7</span>
           <div class="company-mark" aria-label="SOLEA výrobní družstvo">
             <strong>SOLEA</strong>
             <span>výrobní družstvo</span>
@@ -35,6 +35,23 @@
 
       <main>
         <div class="date-strip" id="todayInfo">Dnes</div>
+
+        <section class="panel install-panel" id="installPanel" aria-label="Přidání aplikace na plochu">
+          <div class="install-copy">
+            <span class="label">Přidat aplikaci na plochu</span>
+            <strong>Výkoňák pak půjde spustit jako běžná aplikace.</strong>
+          </div>
+          <div class="install-actions">
+            <button class="install-platform-button android-install" id="installAndroid" type="button">
+              <span class="platform-icon android-icon" aria-hidden="true">A</span>
+              <span>Android</span>
+            </button>
+            <button class="install-platform-button ios-install" id="installApple" type="button">
+              <span class="platform-icon ios-icon" aria-hidden="true">iOS</span>
+              <span>iPhone</span>
+            </button>
+          </div>
+        </section>
 
         <section class="panel summary-panel" aria-live="polite">
           <div>
@@ -353,7 +370,20 @@
       </section>
     </div>
 
-    <script src="app.js?v=86" defer></script>
+    <div class="install-sheet" id="installSheet" hidden>
+      <div class="install-backdrop" data-install-close></div>
+      <section class="install-guide-panel" aria-label="Návod k instalaci">
+        <div class="install-guide-head">
+          <strong id="installGuideTitle">Přidání na plochu</strong>
+          <button class="icon-button" id="installGuideClose" type="button" aria-label="Zavřít návod">
+            <span aria-hidden="true">x</span>
+          </button>
+        </div>
+        <div class="install-guide-content" id="installGuideContent"></div>
+      </section>
+    </div>
+
+    <script src="app.js?v=87" defer></script>
   </body>
 </html>
 

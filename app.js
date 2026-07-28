@@ -110,7 +110,14 @@
     warnings: document.querySelector("#warnings"),
     results: document.querySelector("#results"),
     quickProducts: document.querySelector("#quickProducts"),
+    installPanel: document.querySelector("#installPanel"),
+    installAndroid: document.querySelector("#installAndroid"),
+    installApple: document.querySelector("#installApple"),
     installApp: document.querySelector("#installApp"),
+    installSheet: document.querySelector("#installSheet"),
+    installGuideTitle: document.querySelector("#installGuideTitle"),
+    installGuideContent: document.querySelector("#installGuideContent"),
+    installGuideClose: document.querySelector("#installGuideClose"),
     calcSheet: document.querySelector("#calcSheet"),
     calcExpression: document.querySelector("#calcExpression"),
     calcResult: document.querySelector("#calcResult"),
@@ -176,19 +183,38 @@
     event.preventDefault();
     deferredInstallPrompt = event;
     els.installApp.hidden = false;
+    updateInstallButtons();
   });
 
-  els.installApp.addEventListener("click", async () => {
+  els.installAndroid.addEventListener("click", installOnAndroid);
+  els.installApple.addEventListener("click", () => openInstallGuide("ios"));
+  els.installGuideClose.addEventListener("click", closeInstallGuide);
+  els.installSheet.querySelector("[data-install-close]").addEventListener("click", closeInstallGuide);
+  els.installApp.addEventListener("click", installOnAndroid);
+
+  async function installOnAndroid() {
+    if (isStandaloneApp()) {
+      openInstallGuide("installed");
+      return;
+    }
+    if (!deferredInstallPrompt) {
+      openInstallGuide("android");
+      return;
+    }
+    els.installAndroid.disabled = true;
     if (!deferredInstallPrompt) return;
     deferredInstallPrompt.prompt();
     await deferredInstallPrompt.userChoice.catch(() => null);
     deferredInstallPrompt = null;
     els.installApp.hidden = true;
-  });
+    els.installAndroid.disabled = false;
+    updateInstallButtons();
+  }
 
   window.addEventListener("appinstalled", () => {
     deferredInstallPrompt = null;
     els.installApp.hidden = true;
+    updateInstallButtons();
   });
 
   document.querySelector("#resetApp").addEventListener("click", () => {
@@ -255,8 +281,11 @@
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
       navigator.serviceWorker.register("sw.js").catch(() => {});
+      updateInstallButtons();
     });
   }
+
+  updateInstallButtons();
 
   render();
 
@@ -813,6 +842,82 @@
 
   function closeRecordLoader() {
     els.recordSheet.hidden = true;
+  }
+
+  function updateInstallButtons() {
+    if (isStandaloneApp()) {
+      els.installPanel.hidden = true;
+      els.installApp.hidden = true;
+      return;
+    }
+    els.installPanel.hidden = false;
+    els.installAndroid.disabled = false;
+  }
+
+  function isStandaloneApp() {
+    return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+  }
+
+  function openInstallGuide(platform) {
+    const guide = getInstallGuide(platform);
+    els.installGuideTitle.textContent = guide.title;
+    els.installGuideContent.replaceChildren(...guide.nodes);
+    els.installSheet.hidden = false;
+  }
+
+  function closeInstallGuide() {
+    els.installSheet.hidden = true;
+  }
+
+  function getInstallGuide(platform) {
+    if (platform === "installed") {
+      return buildInstallGuide(
+        "Aplikace už je přidaná",
+        [
+          "Výkoňák už běží jako aplikace z plochy.",
+          "Když ho chceš otevřít příště, použij ikonu na ploše telefonu."
+        ]
+      );
+    }
+    if (platform === "ios") {
+      return buildInstallGuide(
+        "Přidat na iPhone",
+        [
+          "Otevři Výkoňák v Safari.",
+          "Klepni na tři tečky v Safari.",
+          "Hledej Přidat na plochu nebo Add to Home Screen.",
+          "Pokud tam tato volba není, klepni nejdřív na Sdílet a potom Přidat na plochu.",
+          "Potvrď Přidat."
+        ],
+        "Na iPhonu to nejde spustit jedním tlačítkem z webu. Apple to dovoluje jen ručně přes nabídku Safari."
+      );
+    }
+    return buildInstallGuide(
+      "Přidat na Android",
+      [
+        "Otevři Výkoňák v Chrome.",
+        "Klepni na tři tečky vpravo nahoře.",
+        "Zvol Přidat na plochu nebo Nainstalovat aplikaci.",
+        "Potvrď přidání."
+      ],
+      "Když Chrome instalaci dovolí, tlačítko Android ji otevře rovnou. Když ne, použij tento postup."
+    );
+  }
+
+  function buildInstallGuide(title, steps, note = "") {
+    const list = document.createElement("ol");
+    steps.forEach((step) => {
+      const item = document.createElement("li");
+      item.textContent = step;
+      list.append(item);
+    });
+    const nodes = [list];
+    if (note) {
+      const paragraph = document.createElement("p");
+      paragraph.textContent = note;
+      nodes.push(paragraph);
+    }
+    return { title, nodes };
   }
 
   function openHelp() {

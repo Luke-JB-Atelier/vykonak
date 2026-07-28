@@ -175,6 +175,71 @@ main {
   gap: 10px;
 }
 
+.install-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  border-color: rgba(7, 86, 120, 0.22);
+  background: #f8fcff;
+}
+
+.install-copy {
+  min-width: 0;
+}
+
+.install-copy strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--strong);
+  font-size: 0.96rem;
+  line-height: 1.2;
+}
+
+.install-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(108px, 1fr));
+  gap: 8px;
+}
+
+.install-platform-button {
+  min-height: 46px;
+  display: inline-grid;
+  grid-template-columns: 32px 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--text);
+  font-weight: 850;
+}
+
+.platform-icon {
+  width: 30px;
+  height: 30px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 950;
+  letter-spacing: 0;
+}
+
+.android-icon {
+  background: #2f9e44;
+}
+
+.ios-icon {
+  background: #111827;
+}
+
+.install-platform-button[disabled] {
+  opacity: 0.64;
+}
+
 .summary-panel > div {
   min-width: 0;
   padding: 12px;
@@ -938,7 +1003,8 @@ textarea {
 
 .calc-sheet,
 .record-sheet,
-.help-sheet {
+.help-sheet,
+.install-sheet {
   position: fixed;
   inset: 0;
   z-index: 20;
@@ -947,13 +1013,15 @@ textarea {
 }
 
 .record-sheet[hidden],
-.help-sheet[hidden] {
+.help-sheet[hidden],
+.install-sheet[hidden] {
   display: none;
 }
 
 .calc-backdrop,
 .record-backdrop,
-.help-backdrop {
+.help-backdrop,
+.install-backdrop {
   position: absolute;
   inset: 0;
   background: rgba(15, 23, 42, 0.34);
@@ -961,7 +1029,8 @@ textarea {
 
 .calc-panel,
 .record-panel,
-.help-panel {
+.help-panel,
+.install-guide-panel {
   position: relative;
   width: min(420px, calc(100% - 18px));
   margin: 0 auto calc(10px + env(safe-area-inset-bottom));
@@ -974,7 +1043,8 @@ textarea {
 
 .calc-head,
 .record-head,
-.help-head {
+.help-head,
+.install-guide-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -984,7 +1054,8 @@ textarea {
 
 .calc-head strong,
 .record-head strong,
-.help-head strong {
+.help-head strong,
+.install-guide-head strong {
   color: var(--strong);
 }
 
@@ -992,7 +1063,12 @@ textarea {
   width: min(560px, calc(100% - 18px));
 }
 
-.help-content {
+.install-guide-panel {
+  width: min(520px, calc(100% - 18px));
+}
+
+.help-content,
+.install-guide-content {
   display: grid;
   gap: 8px;
   max-height: min(72vh, 620px);
@@ -1002,26 +1078,32 @@ textarea {
   line-height: 1.38;
 }
 
-.help-content h3 {
+.help-content h3,
+.install-guide-content h3 {
   margin: 8px 0 0;
   color: var(--strong);
   font-size: 0.98rem;
 }
 
-.help-content h3:first-child {
+.help-content h3:first-child,
+.install-guide-content h3:first-child {
   margin-top: 0;
 }
 
 .help-content p,
-.help-content ol {
+.help-content ol,
+.install-guide-content p,
+.install-guide-content ol {
   margin: 0;
 }
 
-.help-content ol {
+.help-content ol,
+.install-guide-content ol {
   padding-left: 20px;
 }
 
-.help-content li {
+.help-content li,
+.install-guide-content li {
   margin: 0 0 4px;
 }
 
@@ -1187,6 +1269,32 @@ textarea {
 
   .panel {
     padding: 10px;
+  }
+
+  .install-panel {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .install-copy strong {
+    font-size: 0.88rem;
+  }
+
+  .install-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .install-platform-button {
+    min-height: 42px;
+    padding: 0 8px;
+    font-size: 0.82rem;
+  }
+
+  .platform-icon {
+    width: 28px;
+    height: 28px;
+    font-size: 0.64rem;
   }
 
   .summary-panel {
