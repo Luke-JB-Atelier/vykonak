@@ -83,7 +83,7 @@ button {
   width: 104px;
   height: 104px;
   background: url("solea-heart.svg") center / contain no-repeat;
-  opacity: 0.11;
+  opacity: 0.22;
   pointer-events: none;
   -webkit-mask-image: linear-gradient(108deg, transparent 0%, rgba(0, 0, 0, 0.18) 34%, #000000 78%);
   mask-image: linear-gradient(108deg, transparent 0%, rgba(0, 0, 0, 0.18) 34%, #000000 78%);
@@ -1936,5 +1936,421 @@ textarea {
 
   .mobile-actions:has(.install-button[hidden]) {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Výkoňák v9.3 – kompaktní a čitelnější karty lidí */
+.people-header {
+  display: none;
+}
+
+#peopleRows {
+  gap: 14px;
+}
+
+.person-card {
+  position: relative;
+  overflow: visible;
+  padding: 12px;
+  border: 1px solid #c7d2de;
+  border-left: 5px solid var(--accent);
+  border-radius: 11px;
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(27, 39, 62, 0.08);
+}
+
+.people-grid {
+  grid-template-columns: minmax(190px, 1.65fr) 122px 82px minmax(132px, 0.9fr) 124px 42px;
+  grid-template-areas:
+    "name target product keeper toggle remove"
+    "panel panel panel panel panel panel";
+  gap: 9px 10px;
+  align-items: end;
+}
+
+.person-card label {
+  min-width: 0;
+}
+
+.person-card label > span {
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip: auto;
+  display: block;
+  margin: 0 0 5px;
+  color: #536177;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.15;
+  white-space: normal;
+}
+
+.person-card input {
+  min-height: 46px;
+  padding: 8px 10px;
+  color: var(--strong);
+  font-size: 1.04rem;
+  font-weight: 700;
+}
+
+.name-field {
+  grid-area: name;
+}
+
+.name-field input {
+  font-size: 1.12rem;
+  font-weight: 800;
+}
+
+.fixed-pieces-field {
+  grid-area: target;
+}
+
+.fixed-pieces-field input {
+  min-height: 52px;
+  padding: 6px 7px;
+  border: 2px solid var(--accent);
+  background: #eef9fc;
+  color: var(--strong);
+  font-size: 1.72rem;
+  font-weight: 900;
+  line-height: 1;
+  text-align: center;
+}
+
+.fixed-pieces-field input::placeholder {
+  color: #667383;
+  font-size: 1rem;
+  font-weight: 800;
+  opacity: 1;
+}
+
+.fixed-product-field {
+  grid-area: product;
+}
+
+.fixed-product-field input {
+  min-height: 46px;
+  padding-inline: 5px;
+  font-size: 1.28rem;
+  font-weight: 900;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.fixed-product-field input:placeholder-shown {
+  font-size: 0.86rem;
+  font-weight: 800;
+  text-transform: none;
+}
+
+.fixed-product-field input::placeholder {
+  color: #6b7280;
+  opacity: 1;
+}
+
+.person-card .keeper-toggle {
+  grid-area: keeper;
+  min-width: 0;
+  min-height: 46px;
+  justify-content: flex-start;
+  gap: 9px;
+  padding: 8px 10px;
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.person-card .keeper-toggle input {
+  width: 20px;
+  height: 20px;
+  min-height: 20px;
+  flex: 0 0 20px;
+}
+
+.person-card .keeper-toggle span {
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip: auto;
+  margin: 0;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 800;
+  line-height: 1.12;
+}
+
+.person-details-toggle {
+  grid-area: toggle;
+  min-width: 0;
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 7px 9px;
+  border: 1px solid #9fc2d0;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 0.86rem;
+  font-weight: 900;
+}
+
+.person-details-toggle .details-chevron {
+  font-size: 1.1rem;
+  line-height: 1;
+  transition: transform 160ms ease;
+}
+
+.person-details-toggle[aria-expanded="true"] .details-chevron {
+  transform: rotate(180deg);
+}
+
+.person-details-toggle:focus-visible,
+.person-card input:focus-visible,
+.person-card .remove-row:focus-visible {
+  outline: 3px solid rgba(7, 86, 120, 0.22);
+  outline-offset: 2px;
+}
+
+.person-card .remove-row {
+  grid-area: remove;
+  align-self: end;
+  width: 42px;
+  min-height: 46px;
+  border-color: rgba(173, 47, 47, 0.28);
+  background: #fffafa;
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
+.person-details-panel {
+  grid-area: panel;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid #d6e1e8;
+  border-radius: 9px;
+  background: #f4f8fa;
+}
+
+.person-details-panel[hidden] {
+  display: none;
+}
+
+.person-details-grid {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.62fr) minmax(112px, 0.42fr) minmax(220px, 1.5fr);
+  gap: 10px;
+  align-items: end;
+}
+
+.person-details-grid input {
+  min-height: 44px;
+  font-size: 1rem;
+}
+
+.person-details-grid .capacity-hint {
+  grid-column: auto;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 7px 10px;
+  border: 1px solid #dbe3ec;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #536177;
+  font-size: 0.8rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+/* Prázdný název výrobku je menší; napsané L/C/R zůstává výrazné. */
+.product-grid [data-field="name"]:placeholder-shown {
+  font-size: 0.88rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.product-grid [data-field="name"]::placeholder {
+  color: #6b7280;
+  opacity: 1;
+}
+
+@media (max-width: 760px) {
+  #peopleRows {
+    gap: 13px;
+  }
+
+  .person-card {
+    padding: 10px 9px 9px;
+    border-left-width: 5px;
+    border-radius: 10px;
+    box-shadow: 0 4px 11px rgba(27, 39, 62, 0.09);
+  }
+
+  .people-grid {
+    grid-template-columns: 64px minmax(0, 1fr) 90px 36px;
+    grid-template-areas:
+      "name name target remove"
+      "product keeper toggle toggle"
+      "panel panel panel panel";
+    gap: 8px 5px;
+    align-items: end;
+  }
+
+  .person-card label > span {
+    margin-bottom: 4px;
+    color: #526075;
+    font-size: 0.75rem;
+    font-weight: 900;
+    line-height: 1.08;
+  }
+
+  .person-card input {
+    min-height: 44px;
+    padding: 7px 8px;
+    font-size: 1.02rem;
+  }
+
+  .name-field input {
+    min-height: 48px;
+    font-size: 1.14rem;
+  }
+
+  .fixed-pieces-field input {
+    min-height: 52px;
+    padding-inline: 4px;
+    font-size: 1.66rem;
+  }
+
+  .fixed-pieces-field input::placeholder {
+    font-size: 0.96rem;
+  }
+
+  .fixed-product-field input {
+    min-height: 44px;
+    padding-inline: 3px;
+    font-size: 1.22rem;
+  }
+
+  .fixed-product-field input:placeholder-shown {
+    font-size: 0.78rem;
+  }
+
+  .person-card .keeper-toggle {
+    grid-column: auto;
+    min-height: 44px;
+    justify-content: flex-start;
+    gap: 7px;
+    padding: 6px 8px;
+  }
+
+  .person-card .keeper-toggle input {
+    width: 20px;
+    height: 20px;
+    min-height: 20px;
+  }
+
+  .person-card .keeper-toggle span {
+    font-size: 0.84rem;
+    line-height: 1.05;
+  }
+
+  .person-details-toggle {
+    min-height: 44px;
+    gap: 5px;
+    padding-inline: 7px;
+    font-size: 0.8rem;
+  }
+
+  .person-card .remove-row {
+    grid-column: auto;
+    grid-row: auto;
+    align-self: end;
+    width: 36px;
+    min-height: 52px;
+    font-size: 1.05rem;
+  }
+
+  .person-details-panel {
+    padding: 9px;
+  }
+
+  .person-details-grid {
+    grid-template-columns: minmax(0, 1fr) 88px;
+    gap: 8px;
+  }
+
+  .person-details-grid .rate-field {
+    grid-column: 1;
+  }
+
+  .person-details-grid .hours-field {
+    grid-column: 2;
+  }
+
+  .person-details-grid input {
+    min-height: 44px;
+    font-size: 1.02rem;
+  }
+
+  .person-details-grid .capacity-hint {
+    grid-column: 1 / -1;
+    min-height: 0;
+    padding: 8px 9px;
+    font-size: 0.76rem;
+  }
+
+  .name-suggestions {
+    top: calc(100% + 4px);
+    left: 0;
+    width: min(220px, calc(100vw - 42px));
+  }
+
+  .product-grid [data-field="name"]:placeholder-shown {
+    font-size: 0.76rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .people-grid {
+    grid-template-columns: 60px minmax(0, 1fr) 86px 34px;
+    gap: 7px 5px;
+  }
+
+  .person-card {
+    padding-inline: 8px;
+  }
+
+  .person-details-toggle {
+    font-size: 0.76rem;
+  }
+
+  .fixed-pieces-field input {
+    font-size: 1.55rem;
+  }
+}
+
+/* Ochrana proti vodorovnému přetékání na užších telefonech. */
+@media (max-width: 760px) {
+  .app-shell,
+  main,
+  .panel,
+  .date-strip,
+  .section-head,
+  .section-actions,
+  .section-tools {
+    min-width: 0;
+  }
+
+  main,
+  .panel,
+  .date-strip {
+    width: 100%;
+    max-width: 100%;
   }
 }

@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="icon-192.png">
     <link rel="apple-touch-icon" href="icon-192.png">
-    <link rel="stylesheet" href="styles.css?v=92">
+    <link rel="stylesheet" href="styles.css?v=93">
   </head>
   <body>
     <div class="app-shell">
@@ -22,7 +22,7 @@
           <h1>Výkoňák</h1>
         </div>
         <div class="topbar-actions">
-          <span class="app-version">v9.2</span>
+          <span class="app-version">v9.3</span>
           <div class="company-mark" aria-label="SOLEA výrobní družstvo">
             <strong>SOLEA</strong>
             <span>výrobní družstvo</span>
@@ -72,7 +72,7 @@
           <div class="section-head">
             <div>
               <h2>Parta</h2>
-              <p>Hlavní je cíl v kusech. Kusy za hodinu a hodiny slouží hlavně pro procenta.</p>
+              <p>Nejdůležitější jsou jméno a cíl kusů. Výkon a hodiny najdeš v podrobnostech.</p>
             </div>
             <div class="section-tools">
               <button class="action-button help-button" id="openHelp" type="button" aria-label="Otevřít nápovědu">
@@ -84,15 +84,6 @@
                 <span>Přidat člověka</span>
               </button>
             </div>
-          </div>
-          <div class="people-header" aria-hidden="true">
-            <span>Jméno</span>
-            <span>Cíl ks</span>
-            <span>Z výrobku</span>
-            <span>Beru zbytky</span>
-            <span>Kusů za hodinu</span>
-            <span>Hodiny</span>
-            <span></span>
           </div>
           <div class="rows" id="peopleRows"></div>
         </section>
@@ -224,30 +215,44 @@
             <input data-field="name" type="text" autocomplete="off" placeholder="Jméno">
             <div class="name-suggestions" hidden></div>
           </label>
+
           <label class="fixed-pieces-field">
-            <span>Cíl ks</span>
-            <input data-field="fixedPieces" type="number" inputmode="numeric" min="0" step="1" placeholder="Cíl ks">
+            <span>Cíl kusů</span>
+            <input data-field="fixedPieces" type="number" inputmode="numeric" min="0" step="1" placeholder="Cíl">
           </label>
+
           <label class="fixed-product-field">
             <span>Z výrobku</span>
-            <input data-field="fixedProduct" type="text" autocomplete="off" placeholder="L / C / R">
+            <input data-field="fixedProduct" type="text" autocomplete="off" placeholder="L/C/R">
           </label>
+
           <label class="keeper-toggle">
             <input data-field="keeper" type="checkbox">
             <span>Beru zbytky</span>
           </label>
-          <label class="rate-field">
-            <span>Kusů za hodinu</span>
-            <input data-field="rate" type="number" inputmode="decimal" min="0" step="0.5" placeholder="Ks/h">
-          </label>
-          <label class="hours-field">
-            <span>Hodiny</span>
-            <input data-field="hours" type="number" inputmode="decimal" min="0" step="0.25" placeholder="H">
-          </label>
+
+          <button class="person-details-toggle" type="button" aria-expanded="false">
+            <span>Podrobnosti</span>
+            <span class="details-chevron" aria-hidden="true">⌄</span>
+          </button>
+
           <button class="icon-button remove-row" type="button" aria-label="Odebrat člověka">
             <span aria-hidden="true">x</span>
           </button>
-          <div class="capacity-hint" data-capacity-hint></div>
+
+          <div class="person-details-panel" hidden>
+            <div class="person-details-grid">
+              <label class="rate-field">
+                <span>Kusů za hodinu</span>
+                <input data-field="rate" type="number" inputmode="decimal" min="0" step="0.5" placeholder="Ks/h">
+              </label>
+              <label class="hours-field">
+                <span>Hodiny</span>
+                <input data-field="hours" type="number" inputmode="decimal" min="0" step="0.25" placeholder="H">
+              </label>
+              <div class="capacity-hint" data-capacity-hint></div>
+            </div>
+          </div>
         </div>
       </article>
     </template>
@@ -352,30 +357,33 @@
           </button>
         </div>
         <div class="help-content">
-          <h3>Postup</h3>
+          <h3>Rychlý postup</h3>
           <ol>
-            <li>Nejdřív vyplň partu: kdo pracuje, kolik má kusů za hodinu a kolik hodin je ve směně.</li>
-            <li>Pokud má někdo dostat přesný počet kusů, napiš ho do políčka Pevné.</li>
-            <li>Označ Zbytky u člověka, který může dostat rozdělané výrobky nebo více řádků.</li>
-            <li>Do výroby napiš výrobek a počet kusů. Součet nahoře musí odpovídat tomu, co se opravdu vyrobilo.</li>
-            <li>Stiskni Spočítat. Když se ukáže značka obnovy, můžeš stisknout znovu a zkusit další variantu.</li>
-            <li>Vyber výsledek, který je nejjednodušší na zapsání do výkoňáku.</li>
+            <li>V části Parta napiš jména a hlavně Cíl kusů každého člověka.</li>
+            <li>Zadej výrobu ručně, vlož ji po řádcích nebo použij Naplánovat výrobu.</li>
+            <li>Zkontroluj nahoře Výrobu celkem, Cíl party a Rozdíl.</li>
+            <li>Stiskni Spočítat. Dalším stisknutím můžeš zkusit jinou variantu rozdělení.</li>
           </ol>
 
           <h3>Parta</h3>
           <p><strong>Jméno</strong> je člověk ve směně. Při psaní se nabídnou uložená příjmení.</p>
-          <p><strong>Ks/h</strong> je výkon člověka za hodinu. <strong>Hod.</strong> je délka směny.</p>
-          <p><strong>Pevné</strong> použij hlavně u nováčků nebo lidí, kteří mají předem daný počet kusů.</p>
-          <p><strong>Zbytky</strong> použij u člověka, který si může vzít rozdělané kusy nebo více výrobků.</p>
+          <p><strong>Cíl kusů</strong> je hlavní číslo: kolik má člověk za směnu dostat. Když ho necháš prázdný, cíl se spočítá z kusů za hodinu a délky směny.</p>
+          <p><strong>Z výrobku</strong> vyplň jen tehdy, když má člověk dostat svůj cíl z konkrétní výroby, například L, C nebo R.</p>
+          <p><strong>Beru zbytky</strong> označ u člověka, který může dostat rozdělané kusy nebo více různých výrobků.</p>
+          <p>V <strong>Podrobnostech</strong> jsou Kusů za hodinu, Hodiny a pomocný přepočet kapacity.</p>
 
-          <h3>Výroba</h3>
+          <h3>Jak zadat výrobu</h3>
           <p><strong>Výrobek</strong> je název, třeba C, R nebo L. <strong>Kusů</strong> je celkový počet daného výrobku.</p>
+          <p><strong>Přidat výrobu</strong> vloží samostatný řádek. Volba Jiné dovolí napsat libovolný název.</p>
+          <p><strong>Napsat výrobu ručně</strong> přijme více řádků najednou, například „C 336“ a „L 672“. Můžeš je přidat k současné výrobě nebo jí současné řádky nahradit.</p>
+          <p><strong>Naplánovat výrobu</strong> používá cíl celé party. Vyber 168 nebo 180 kusů v bedně, tlačítky plus a minus zadej už připravené celé bedny a do Zbytku napiš počet kusů v rozpracované bedně. Potom zvol Použít jako výrobu.</p>
           <p>Tlačítko <strong>=</strong> otevře kalkulačku pro počet kusů. Tlačítko <strong>i</strong> otevře poznámku.</p>
           <p><strong>Celé</strong> znamená celé bedny. <strong>Doplněno</strong> je začátek směny, kdy se dodělává rozpracovaná bedna. <strong>Rozprac.</strong> je konec směny, kdy něco zůstalo v bedně.</p>
 
-          <h3>Nastavení a uložení</h3>
-          <p><strong>Max. řádků bez zbytků</strong> omezuje, kolik různých řádků má dostat člověk, který nemá zaškrtnuté Zbytky. Menší počet znamená méně vypisování.</p>
-          <p><strong>Nejmenší rozumný zápis</strong> pomáhá zabránit zbytečně malým řádkům.</p>
+          <h3>Nastavení, výsledek a uložení</h3>
+          <p><strong>Max. řádků bez zbytků</strong> omezuje, kolik různých výrobků má dostat člověk bez označení Beru zbytky. Menší počet znamená méně vypisování.</p>
+          <p><strong>Nejmenší rozumný zápis</strong> určuje, jak krátkému pracovnímu úseku se má výpočet pokud možno vyhnout. Výchozí hodnota je půl hodiny.</p>
+          <p>Když se první rozdělení nehodí, stiskni <strong>Spočítat</strong> znovu. Součet kusů musí v každé variantě zůstat stejný.</p>
           <p><strong>Uložit</strong> uloží aktuální výpočet do tohoto mobilu a prohlížeče. <strong>Načíst</strong> otevře starší uložené výpočty z tohoto zařízení.</p>
           <p>Uložené záznamy nejsou v cloudu. Když někdo v prohlížeči smaže cookies nebo data webů, může tím smazat i uložené výkoňáky.</p>
         </div>
@@ -448,7 +456,6 @@
       </section>
     </div>
 
-    <script src="app.js?v=92" defer></script>
+    <script src="app.js?v=93" defer></script>
   </body>
 </html>
-

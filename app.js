@@ -380,7 +380,23 @@
       const nameInput = node.querySelector('[data-field="name"]');
       const nameSuggestions = node.querySelector(".name-suggestions");
       const capacityHint = node.querySelector("[data-capacity-hint]");
+      const detailsToggle = node.querySelector(".person-details-toggle");
+      const detailsPanel = node.querySelector(".person-details-panel");
+      const detailsId = `person-details-${person.id}`;
+      detailsPanel.id = detailsId;
+      detailsToggle.setAttribute("aria-controls", detailsId);
+      detailsToggle.setAttribute("aria-label", "Zobrazit podrobnosti člověka");
       updateCapacityHint(capacityHint, person);
+
+      detailsToggle.addEventListener("click", () => {
+        const willOpen = detailsToggle.getAttribute("aria-expanded") !== "true";
+        detailsToggle.setAttribute("aria-expanded", String(willOpen));
+        detailsToggle.setAttribute(
+          "aria-label",
+          willOpen ? "Skrýt podrobnosti člověka" : "Zobrazit podrobnosti člověka"
+        );
+        detailsPanel.hidden = !willOpen;
+      });
 
       node.addEventListener("input", (event) => {
         const field = event.target.dataset.field;
