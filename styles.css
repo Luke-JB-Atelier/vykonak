@@ -1596,6 +1596,21 @@ textarea {
     clip: rect(0 0 0 0);
   }
 
+  .person-card label span {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+    display: block;
+    color: var(--muted);
+    font-size: 0.58rem;
+    font-weight: 900;
+    line-height: 1.05;
+    margin: 0 0 3px;
+    white-space: normal;
+  }
+
   .entry-card label .info-combo-control {
     position: static;
     width: auto;
@@ -1761,13 +1776,14 @@ textarea {
   }
 
   .keeper-toggle span {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
     font-size: 0.72rem;
-    font-weight: 700;
+    font-weight: 800;
+    line-height: 1.05;
   }
 
   .icon-button {

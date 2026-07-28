@@ -427,13 +427,13 @@
     const parts = [];
 
     if (fixedPieces > 0 && hours > 0) {
-      parts.push(`Pevné ${fixedPieces} ks = ${formatNumber(fixedPieces / hours)} ks/h při ${formatNumber(hours)} h`);
+      parts.push(`Pevné ks: ${fixedPieces} celkem = ${formatNumber(fixedPieces / hours)} ks/h při ${formatNumber(hours)} h`);
     } else if (rate > 0 && hours > 0) {
       parts.push(`Kapacita: ${formatNumber(rate)} ks/h x ${formatNumber(hours)} h = ${Math.round(rate * hours)} ks`);
     }
 
     if (fixedPieces > 0 && fixedProduct) {
-      parts.push(`pevná výroba ${fixedProduct}`);
+      parts.push(`z výrobku ${fixedProduct}`);
     }
 
     container.textContent = parts.join(" | ");
@@ -1406,7 +1406,7 @@
 
       const product = inventory.find((item) => normalizeProductName(item.name) === fixedProduct);
       if (!product) {
-        warnings.push(`${assignment.person.name} má pevnou výrobu ${assignment.person.fixedProduct}, ale taková výroba není zadaná.`);
+        warnings.push(`${assignment.person.name} má pevné kusy z výrobku ${assignment.person.fixedProduct}, ale taková výroba není zadaná.`);
         return;
       }
 
