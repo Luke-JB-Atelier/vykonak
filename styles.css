@@ -313,6 +313,23 @@ label span {
   line-height: 1.35;
 }
 
+.product-planning-actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.product-planning-actions > .action-button,
+.product-planning-actions > .quick-import {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.product-planning-actions > .action-button {
+  min-height: 46px;
+}
+
 .rows {
   display: grid;
   gap: 8px;
@@ -844,7 +861,7 @@ textarea {
 }
 
 .quick-import-top {
-  margin-top: 10px;
+  margin-top: 0;
   border-top: 0;
   padding-top: 0;
 }
@@ -878,9 +895,22 @@ textarea {
 }
 
 .quick-import summary {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--accent-soft);
   color: var(--accent-strong);
   cursor: pointer;
-  font-weight: 700;
+  font-weight: 900;
+  list-style: none;
+}
+
+.quick-import summary::-webkit-details-marker {
+  display: none;
 }
 
 .quick-import label {
@@ -1018,7 +1048,8 @@ textarea {
 .calc-sheet,
 .record-sheet,
 .help-sheet,
-.install-sheet {
+.install-sheet,
+.planner-sheet {
   position: fixed;
   inset: 0;
   z-index: 20;
@@ -1028,14 +1059,16 @@ textarea {
 
 .record-sheet[hidden],
 .help-sheet[hidden],
-.install-sheet[hidden] {
+.install-sheet[hidden],
+.planner-sheet[hidden] {
   display: none;
 }
 
 .calc-backdrop,
 .record-backdrop,
 .help-backdrop,
-.install-backdrop {
+.install-backdrop,
+.planner-backdrop {
   position: absolute;
   inset: 0;
   background: rgba(15, 23, 42, 0.34);
@@ -1044,7 +1077,8 @@ textarea {
 .calc-panel,
 .record-panel,
 .help-panel,
-.install-guide-panel {
+.install-guide-panel,
+.planner-panel {
   position: relative;
   width: min(420px, calc(100% - 18px));
   margin: 0 auto calc(10px + env(safe-area-inset-bottom));
@@ -1058,7 +1092,8 @@ textarea {
 .calc-head,
 .record-head,
 .help-head,
-.install-guide-head {
+.install-guide-head,
+.planner-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1069,12 +1104,17 @@ textarea {
 .calc-head strong,
 .record-head strong,
 .help-head strong,
-.install-guide-head strong {
+.install-guide-head strong,
+.planner-head strong {
   color: var(--strong);
 }
 
 .help-panel {
   width: min(560px, calc(100% - 18px));
+}
+
+.planner-panel {
+  width: min(620px, calc(100% - 18px));
 }
 
 .install-guide-panel {
@@ -1119,6 +1159,100 @@ textarea {
 .help-content li,
 .install-guide-content li {
   margin: 0 0 4px;
+}
+
+.planner-content {
+  display: grid;
+  gap: 10px;
+}
+
+.planner-box-size {
+  display: grid;
+  grid-template-columns: minmax(82px, 1fr) repeat(2, minmax(82px, 0.85fr));
+  gap: 8px;
+  align-items: center;
+}
+
+.planner-box-size > span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.planner-choice,
+.planner-row button {
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+  color: var(--text);
+  font-weight: 900;
+}
+
+.planner-choice.is-active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.planner-rows {
+  display: grid;
+  gap: 8px;
+}
+
+.planner-row {
+  display: grid;
+  grid-template-columns: 34px 40px minmax(76px, 1fr) 40px minmax(92px, 0.85fr);
+  gap: 7px;
+  align-items: end;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfe;
+}
+
+.planner-row strong {
+  align-self: center;
+  color: var(--strong);
+  font-size: 1.1rem;
+}
+
+.planner-row [data-plan-boxes] {
+  align-self: center;
+  color: var(--text);
+  font-weight: 900;
+  text-align: center;
+}
+
+.planner-preview {
+  display: grid;
+  gap: 6px;
+  min-height: 44px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.planner-preview-row {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.planner-preview-row strong:last-child {
+  color: var(--strong);
+}
+
+.planner-note {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.3;
 }
 
 .record-list {
@@ -1415,6 +1549,18 @@ textarea {
     line-height: 1.25;
   }
 
+  .product-planning-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .product-planning-actions > .action-button,
+  .quick-import summary {
+    min-height: 38px;
+    font-size: 0.72rem;
+  }
+
   .entry-card {
     padding: 5px;
   }
@@ -1489,6 +1635,35 @@ textarea {
 
   .quick-actions {
     flex-direction: column;
+  }
+
+  .planner-panel {
+    width: min(390px, calc(100% - 14px));
+    padding: 10px;
+  }
+
+  .planner-box-size {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .planner-box-size > span {
+    grid-column: 1 / -1;
+  }
+
+  .planner-row {
+    grid-template-columns: 26px 34px minmax(64px, 1fr) 34px minmax(76px, 0.86fr);
+    gap: 5px;
+    padding: 6px;
+  }
+
+  .planner-choice,
+  .planner-row button {
+    min-height: 34px;
+  }
+
+  .planner-preview-row {
+    grid-template-columns: 30px minmax(0, 1fr) auto;
+    gap: 6px;
   }
 
   .people-grid {

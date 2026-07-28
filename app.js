@@ -110,6 +110,12 @@
     warnings: document.querySelector("#warnings"),
     results: document.querySelector("#results"),
     quickProducts: document.querySelector("#quickProducts"),
+    openProductionPlanner: document.querySelector("#openProductionPlanner"),
+    plannerSheet: document.querySelector("#plannerSheet"),
+    plannerRows: document.querySelector("#plannerRows"),
+    plannerPreview: document.querySelector("#plannerPreview"),
+    plannerClose: document.querySelector("#plannerClose"),
+    applyProductionPlan: document.querySelector("#applyProductionPlan"),
     installPanel: document.querySelector("#installPanel"),
     installAndroid: document.querySelector("#installAndroid"),
     installApple: document.querySelector("#installApple"),
@@ -141,6 +147,8 @@
   let activeCalculator = null;
   let lastCalculationSignature = "";
   let calculationVariant = 0;
+  let plannerBoxSize = 168;
+  let latestProductionPlan = [];
 
   document.querySelector("#addPerson").addEventListener("click", () => {
     state.people.push({ id: uid(), name: "", rate: 45, hours: 6, fixedPieces: 0, fixedProduct: "", keeper: false });
@@ -149,6 +157,37 @@
 
   document.querySelector("#addProduct").addEventListener("click", () => {
     toggleProductPicker();
+  });
+
+  els.openProductionPlanner.addEventListener("click", openProductionPlanner);
+
+  els.plannerSheet.querySelector("[data-planner-close]").addEventListener("click", closeProductionPlanner);
+  els.plannerClose.addEventListener("click", closeProductionPlanner);
+  els.applyProductionPlan.addEventListener("click", applyProductionPlan);
+
+  els.plannerSheet.querySelectorAll("[data-box-size]").forEach((button) => {
+    button.addEventListener("click", () => {
+      plannerBoxSize = Number(button.dataset.boxSize) || 168;
+      updatePlannerBoxButtons();
+      clampPlannerRemainders();
+      updateProductionPlanner();
+    });
+  });
+
+  els.plannerRows.addEventListener("click", (event) => {
+    const stepButton = event.target.closest("[data-plan-step]");
+    if (!stepButton) return;
+    const row = stepButton.closest("[data-plan-product]");
+    const current = Number(row.dataset.boxCount || 0);
+    row.dataset.boxCount = String(Math.max(0, current + Number(stepButton.dataset.planStep)));
+    updatePlannerRow(row);
+    updateProductionPlanner();
+  });
+
+  els.plannerRows.addEventListener("input", (event) => {
+    if (!event.target.matches("[data-plan-remainder]")) return;
+    event.target.value = String(clampNumber(event.target.value, 0, plannerBoxSize - 1));
+    updateProductionPlanner();
   });
 
   els.productPicker.addEventListener("click", (event) => {
@@ -732,6 +771,180 @@
       });
     });
     return { products: products.filter((product) => product.pieces > 0), skipped };
+  }
+
+  function openProductionPlanner() {
+    els.plannerSheet.hidden = false;
+    updatePlannerBoxButtons();
+    clampPlannerRemainders();
+    updatePlannerRows();
+    updateProductionPlanner();
+  }
+
+  function closeProductionPlanner() {
+    els.plannerSheet.hidden = true;
+  }
+
+  function updatePlannerBoxButtons() {
+    els.plannerSheet.querySelectorAll("[data-box-size]").forEach((button) => {
+      button.classList.toggle("is-active", Number(button.dataset.boxSize) === plannerBoxSize);
+    });
+  }
+
+  function updatePlannerRows() {
+    els.plannerRows.querySelectorAll("[data-plan-product]").forEach(updatePlannerRow);
+  }
+
+  function updatePlannerRow(row) {
+    const count = Math.max(0, Math.round(numberOrZero(row.dataset.boxCount)));
+    row.dataset.boxCount = String(count);
+    const label = row.querySelector("[data-plan-boxes]");
+    label.textContent = `${count} ${formatBoxWord(count)}`;
+  }
+
+  function clampPlannerRemainders() {
+    els.plannerRows.querySelectorAll("[data-plan-remainder]").forEach((input) => {
+      input.value = String(clampNumber(input.value, 0, plannerBoxSize - 1));
+    });
+  }
+
+  function updateProductionPlanner() {
+    const capacity = cleanPeople().reduce((acc, person) => acc + person.capacity, 0);
+    const stock = readPlannerStock();
+    latestProductionPlan = buildProductionPlan(capacity, stock, plannerBoxSize);
+    renderProductionPlanPreview(capacity, stock);
+  }
+
+  function readPlannerStock() {
+    return Array.from(els.plannerRows.querySelectorAll("[data-plan-product]")).map((row) => ({
+      name: row.dataset.planProduct,
+      boxes: Math.max(0, Math.round(numberOrZero(row.dataset.boxCount))),
+      remainder: clampNumber(row.querySelector("[data-plan-remainder]").value, 0, plannerBoxSize - 1)
+    }));
+  }
+
+  function buildProductionPlan(capacity, stock, boxSize) {
+    if (capacity <= 0) return [];
+
+    const names = stock.map((item) => item.name);
+    const starter = stock.find((item) => item.remainder > 0)?.name || chooseLowestStockProduct(stock)?.name || names[0];
+    const finalProduct = chooseFinalProduct(stock, starter) || names.find((name) => name !== starter) || starter;
+    const middle = names.find((name) => name !== starter && name !== finalProduct) || names.find((name) => name !== starter) || starter;
+
+    const firstPieces = chooseLargePlanBlock(capacity, boxSize);
+    let remaining = Math.max(0, capacity - firstPieces);
+    let secondPieces = remaining > 0 ? Math.min(firstPieces, remaining) : 0;
+    remaining = Math.max(0, remaining - secondPieces);
+
+    while (remaining > boxSize && secondPieces + boxSize <= capacity - firstPieces) {
+      secondPieces += boxSize;
+      remaining -= boxSize;
+    }
+
+    const result = [
+      { name: starter, pieces: firstPieces },
+      { name: middle, pieces: secondPieces },
+      { name: finalProduct, pieces: remaining }
+    ].filter((item) => item.pieces > 0);
+
+    return mergePlanProducts(result);
+  }
+
+  function chooseLargePlanBlock(capacity, boxSize) {
+    const count = Math.max(1, Math.floor(capacity / boxSize / 2));
+    return Math.min(capacity, count * boxSize);
+  }
+
+  function chooseLowestStockProduct(stock) {
+    return stock
+      .map((item, index) => ({ item, index }))
+      .sort((a, b) => a.item.boxes - b.item.boxes || a.index - b.index)[0]?.item;
+  }
+
+  function chooseFinalProduct(stock, starter) {
+    const candidates = stock.filter((item) => item.name !== starter);
+    if (!candidates.length) return null;
+    const withBoxes = candidates.filter((item) => item.boxes > 0);
+    if (!withBoxes.length) return candidates[candidates.length - 1].name;
+    return withBoxes
+      .map((item, index) => ({ item, index }))
+      .sort((a, b) => b.item.boxes - a.item.boxes || a.index - b.index)[0].item.name;
+  }
+
+  function mergePlanProducts(products) {
+    const merged = [];
+    products.forEach((product) => {
+      const existing = merged.find((item) => item.name === product.name);
+      if (existing) {
+        existing.pieces += product.pieces;
+      } else {
+        merged.push({ ...product });
+      }
+    });
+    return merged;
+  }
+
+  function renderProductionPlanPreview(capacity, stock) {
+    els.plannerPreview.replaceChildren();
+
+    if (capacity <= 0) {
+      const note = document.createElement("div");
+      note.className = "planner-note";
+      note.textContent = "Nejdřív vyplň partu, aby byla známá kapacita směny.";
+      els.plannerPreview.append(note);
+      els.applyProductionPlan.disabled = true;
+      return;
+    }
+
+    latestProductionPlan.forEach((item) => {
+      const row = document.createElement("div");
+      row.className = "planner-preview-row";
+      const name = document.createElement("strong");
+      name.textContent = item.name;
+      const info = document.createElement("span");
+      const stockItem = stock.find((stockRow) => stockRow.name === item.name);
+      if (stockItem && stockItem.remainder > 0) {
+        info.textContent = `do výkonu, fyzicky dodělat ${Math.max(0, item.pieces - stockItem.remainder)} ks`;
+      } else {
+        info.textContent = "do výkonu zapsat";
+      }
+      const pieces = document.createElement("strong");
+      pieces.textContent = `${item.pieces} ks`;
+      row.append(name, info, pieces);
+      els.plannerPreview.append(row);
+    });
+
+    const total = latestProductionPlan.reduce((acc, item) => acc + item.pieces, 0);
+    const note = document.createElement("div");
+    note.className = "planner-note";
+    note.textContent = `Součet plánu: ${total} ks. Kapacita party: ${capacity} ks.`;
+    els.plannerPreview.append(note);
+    els.applyProductionPlan.disabled = !latestProductionPlan.length;
+  }
+
+  function applyProductionPlan() {
+    if (!latestProductionPlan.length) return;
+    const stock = readPlannerStock();
+    state.products = latestProductionPlan.map((item) => {
+      const stockItem = stock.find((stockRow) => stockRow.name === item.name);
+      return {
+        id: uid(),
+        name: item.name,
+        pieces: item.pieces,
+        noteType: stockItem && stockItem.remainder > 0 ? "rozpracovana" : "",
+        notePieces: stockItem ? stockItem.remainder : 0,
+        note: "",
+        color: ""
+      };
+    });
+    closeProductionPlanner();
+    render();
+  }
+
+  function formatBoxWord(count) {
+    if (count === 1) return "bedna";
+    if (count >= 2 && count <= 4) return "bedny";
+    return "beden";
   }
 
   function calculateNextPlan() {
@@ -1760,6 +1973,11 @@
   function numberOrZero(value) {
     const number = Number(value);
     return Number.isFinite(number) ? number : 0;
+  }
+
+  function clampNumber(value, min, max) {
+    const number = Math.round(numberOrZero(value));
+    return Math.min(max, Math.max(min, number));
   }
 
   function formatSigned(value) {

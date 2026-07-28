@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="icon-192.png">
     <link rel="apple-touch-icon" href="icon-192.png">
-    <link rel="stylesheet" href="styles.css?v=88">
+    <link rel="stylesheet" href="styles.css?v=89">
   </head>
   <body>
     <div class="app-shell">
@@ -22,7 +22,7 @@
           <h1>Výkoňák</h1>
         </div>
         <div class="topbar-actions">
-          <span class="app-version">v8.8</span>
+          <span class="app-version">v8.9</span>
           <div class="company-mark" aria-label="SOLEA výrobní družstvo">
             <strong>SOLEA</strong>
             <span>výrobní družstvo</span>
@@ -102,17 +102,23 @@
             <div>
               <h2>Výroba</h2>
               <p>Název může být C, R, L, doplněno nebo cokoliv, důležitý je počet kusů.</p>
-              <details class="quick-import quick-import-top">
-                <summary>Napsat výrobu ručně</summary>
-                <label>
-                  <span>Vzor: jeden řádek = název a počet</span>
-                  <textarea id="quickProducts" rows="5" placeholder="C - 80&#10;R 168&#10;L: 308"></textarea>
-                </label>
-                <div class="quick-actions">
-                  <button class="text-button" id="appendQuickProducts" type="button">Přidat k výrobě</button>
-                  <button class="text-button" id="replaceQuickProducts" type="button">Nahradit výrobu</button>
-                </div>
-              </details>
+              <div class="product-planning-actions">
+                <button class="action-button add-action" id="openProductionPlanner" type="button">
+                  <span class="action-icon" aria-hidden="true">P</span>
+                  <span>Naplánovat výrobu</span>
+                </button>
+                <details class="quick-import quick-import-top">
+                  <summary>Napsat výrobu ručně</summary>
+                  <label>
+                    <span>Vzor: jeden řádek = název a počet</span>
+                    <textarea id="quickProducts" rows="5" placeholder="C - 80&#10;R 168&#10;L: 308"></textarea>
+                  </label>
+                  <div class="quick-actions">
+                    <button class="text-button" id="appendQuickProducts" type="button">Přidat k výrobě</button>
+                    <button class="text-button" id="replaceQuickProducts" type="button">Nahradit výrobu</button>
+                  </div>
+                </details>
+              </div>
             </div>
             <div class="section-actions">
               <div class="inline-total">
@@ -376,6 +382,59 @@
       </section>
     </div>
 
+    <div class="planner-sheet" id="plannerSheet" hidden>
+      <div class="planner-backdrop" data-planner-close></div>
+      <section class="planner-panel" aria-label="Plán výroby">
+        <div class="planner-head">
+          <strong>Naplánovat výrobu</strong>
+          <button class="icon-button" id="plannerClose" type="button" aria-label="Zavřít plánovač">
+            <span aria-hidden="true">x</span>
+          </button>
+        </div>
+        <div class="planner-content">
+          <div class="planner-box-size">
+            <span>Bedna má</span>
+            <button class="planner-choice is-active" type="button" data-box-size="168">168 ks</button>
+            <button class="planner-choice" type="button" data-box-size="180">180 ks</button>
+          </div>
+          <div class="planner-rows" id="plannerRows">
+            <div class="planner-row" data-plan-product="L">
+              <strong>L</strong>
+              <button type="button" data-plan-step="-1">-</button>
+              <span data-plan-boxes>0 beden</span>
+              <button type="button" data-plan-step="1">+</button>
+              <label>
+                <span>Zbytek</span>
+                <input data-plan-remainder type="number" inputmode="numeric" min="0" step="1" value="0">
+              </label>
+            </div>
+            <div class="planner-row" data-plan-product="C">
+              <strong>C</strong>
+              <button type="button" data-plan-step="-1">-</button>
+              <span data-plan-boxes>0 beden</span>
+              <button type="button" data-plan-step="1">+</button>
+              <label>
+                <span>Zbytek</span>
+                <input data-plan-remainder type="number" inputmode="numeric" min="0" step="1" value="0">
+              </label>
+            </div>
+            <div class="planner-row" data-plan-product="R">
+              <strong>R</strong>
+              <button type="button" data-plan-step="-1">-</button>
+              <span data-plan-boxes>0 beden</span>
+              <button type="button" data-plan-step="1">+</button>
+              <label>
+                <span>Zbytek</span>
+                <input data-plan-remainder type="number" inputmode="numeric" min="0" step="1" value="0">
+              </label>
+            </div>
+          </div>
+          <div class="planner-preview" id="plannerPreview"></div>
+          <button class="primary-button" id="applyProductionPlan" type="button">Použít jako výrobu</button>
+        </div>
+      </section>
+    </div>
+
     <div class="install-sheet" id="installSheet" hidden>
       <div class="install-backdrop" data-install-close></div>
       <section class="install-guide-panel" aria-label="Návod k instalaci">
@@ -389,7 +448,7 @@
       </section>
     </div>
 
-    <script src="app.js?v=88" defer></script>
+    <script src="app.js?v=89" defer></script>
   </body>
 </html>
 
