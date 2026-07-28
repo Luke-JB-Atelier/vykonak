@@ -427,7 +427,7 @@
     const parts = [];
 
     if (fixedPieces > 0 && hours > 0) {
-      parts.push(`Pevné ks: ${fixedPieces} celkem = ${formatNumber(fixedPieces / hours)} ks/h při ${formatNumber(hours)} h`);
+      parts.push(`Cíl: ${fixedPieces} ks celkem = ${formatNumber(fixedPieces / hours)} ks/h při ${formatNumber(hours)} h`);
     } else if (rate > 0 && hours > 0) {
       parts.push(`Kapacita: ${formatNumber(rate)} ks/h x ${formatNumber(hours)} h = ${Math.round(rate * hours)} ks`);
     }
@@ -809,7 +809,7 @@
   }
 
   function updateProductionPlanner() {
-    const capacity = cleanPeople().reduce((acc, person) => acc + person.capacity, 0);
+    const capacity = cleanPeople().reduce((acc, person) => acc + effectivePersonPieces(person), 0);
     const stock = readPlannerStock();
     latestProductionPlan = buildProductionPlan(capacity, stock, plannerBoxSize);
     renderProductionPlanPreview(capacity, stock);
@@ -917,7 +917,7 @@
     const total = latestProductionPlan.reduce((acc, item) => acc + item.pieces, 0);
     const note = document.createElement("div");
     note.className = "planner-note";
-    note.textContent = `Součet plánu: ${total} ks. Kapacita party: ${capacity} ks.`;
+    note.textContent = `Součet plánu: ${total} ks. Cíl party: ${capacity} ks.`;
     els.plannerPreview.append(note);
     els.applyProductionPlan.disabled = !latestProductionPlan.length;
   }
@@ -989,7 +989,7 @@
 
     if (!people.length) warnings.push("Chybí parta s vyplněnými hodinami a výkonem.");
     if (!products.length) warnings.push("Chybí výroba s počtem kusů.");
-    if (!totalCapacity) warnings.push("Kapacita party je nula.");
+    if (!totalCapacity) warnings.push("Cíl party je nula.");
     if (warnings.length) return { people, products, totalPieces, totalCapacity, warnings, assignments: [] };
 
     const keepers = people.filter((person) => person.keeper);
@@ -1905,7 +1905,7 @@
     const people = cleanPeople();
     const products = cleanProducts();
     const totalPieces = sum(products, "pieces");
-    const totalCapacity = people.reduce((acc, person) => acc + person.capacity, 0);
+    const totalCapacity = people.reduce((acc, person) => acc + effectivePersonPieces(person), 0);
     els.totalPieces.textContent = `${totalPieces} ks`;
     els.productTotal.textContent = `${totalPieces} ks`;
     els.totalCapacity.textContent = `${totalCapacity} ks`;
@@ -1938,6 +1938,10 @@
         pieces: Math.round(numberOrZero(product.pieces))
       }))
       .filter((product) => product.pieces > 0);
+  }
+
+  function effectivePersonPieces(person) {
+    return numberOrZero(person.fixedPieces) > 0 ? Math.round(numberOrZero(person.fixedPieces)) : person.capacity;
   }
 
   function minPiecesFor(person) {

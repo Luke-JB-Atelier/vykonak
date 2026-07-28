@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="icon-192.png">
     <link rel="apple-touch-icon" href="icon-192.png">
-    <link rel="stylesheet" href="styles.css?v=90">
+    <link rel="stylesheet" href="styles.css?v=91">
   </head>
   <body>
     <div class="app-shell">
@@ -22,7 +22,7 @@
           <h1>Výkoňák</h1>
         </div>
         <div class="topbar-actions">
-          <span class="app-version">v9.0</span>
+          <span class="app-version">v9.1</span>
           <div class="company-mark" aria-label="SOLEA výrobní družstvo">
             <strong>SOLEA</strong>
             <span>výrobní družstvo</span>
@@ -59,7 +59,7 @@
             <strong id="totalPieces">0 ks</strong>
           </div>
           <div>
-            <span class="label">Kapacita party</span>
+            <span class="label">Cíl party</span>
             <strong id="totalCapacity">0 ks</strong>
           </div>
           <div>
@@ -72,7 +72,7 @@
           <div class="section-head">
             <div>
               <h2>Parta</h2>
-              <p>Kusy za hodinu a délka směny určí cíl každého člověka.</p>
+              <p>Hlavní je cíl v kusech. Kusy za hodinu a hodiny slouží hlavně pro procenta.</p>
             </div>
             <div class="section-tools">
               <button class="action-button help-button" id="openHelp" type="button" aria-label="Otevřít nápovědu">
@@ -87,11 +87,11 @@
           </div>
           <div class="people-header" aria-hidden="true">
             <span>Jméno</span>
-            <span>Kusů za hodinu</span>
-            <span>Hodiny</span>
-            <span>Pevné ks</span>
+            <span>Cíl ks</span>
             <span>Z výrobku</span>
             <span>Beru zbytky</span>
+            <span>Kusů za hodinu</span>
+            <span>Hodiny</span>
             <span></span>
           </div>
           <div class="rows" id="peopleRows"></div>
@@ -224,17 +224,9 @@
             <input data-field="name" type="text" autocomplete="off" placeholder="Jméno">
             <div class="name-suggestions" hidden></div>
           </label>
-          <label>
-            <span>Kusů za hodinu</span>
-            <input data-field="rate" type="number" inputmode="decimal" min="0" step="0.5" placeholder="Ks/h">
-          </label>
-          <label>
-            <span>Hodiny</span>
-            <input data-field="hours" type="number" inputmode="decimal" min="0" step="0.25" placeholder="H">
-          </label>
-          <label>
-            <span>Pevné ks</span>
-            <input data-field="fixedPieces" type="number" inputmode="numeric" min="0" step="1" placeholder="Pevné ks">
+          <label class="fixed-pieces-field">
+            <span>Cíl ks</span>
+            <input data-field="fixedPieces" type="number" inputmode="numeric" min="0" step="1" placeholder="Cíl ks">
           </label>
           <label class="fixed-product-field">
             <span>Z výrobku</span>
@@ -243,6 +235,14 @@
           <label class="keeper-toggle">
             <input data-field="keeper" type="checkbox">
             <span>Beru zbytky</span>
+          </label>
+          <label class="rate-field">
+            <span>Kusů za hodinu</span>
+            <input data-field="rate" type="number" inputmode="decimal" min="0" step="0.5" placeholder="Ks/h">
+          </label>
+          <label class="hours-field">
+            <span>Hodiny</span>
+            <input data-field="hours" type="number" inputmode="decimal" min="0" step="0.25" placeholder="H">
           </label>
           <button class="icon-button remove-row" type="button" aria-label="Odebrat člověka">
             <span aria-hidden="true">x</span>
@@ -448,7 +448,7 @@
       </section>
     </div>
 
-    <script src="app.js?v=90" defer></script>
+    <script src="app.js?v=91" defer></script>
   </body>
 </html>
 

@@ -398,7 +398,7 @@ label span {
 }
 
 .people-grid {
-  grid-template-columns: minmax(110px, 1.18fr) minmax(92px, 0.72fr) minmax(76px, 0.58fr) minmax(86px, 0.62fr) minmax(86px, 0.62fr) minmax(116px, 0.76fr) 42px;
+  grid-template-columns: minmax(110px, 1.12fr) minmax(86px, 0.7fr) minmax(88px, 0.72fr) minmax(112px, 0.76fr) minmax(92px, 0.72fr) minmax(70px, 0.52fr) 42px;
 }
 
 .name-field {
@@ -868,7 +868,7 @@ textarea {
 
 .people-header {
   display: grid;
-  grid-template-columns: minmax(110px, 1.18fr) minmax(92px, 0.72fr) minmax(76px, 0.58fr) minmax(86px, 0.62fr) minmax(86px, 0.62fr) minmax(116px, 0.76fr) 42px;
+  grid-template-columns: minmax(110px, 1.12fr) minmax(86px, 0.7fr) minmax(88px, 0.72fr) minmax(112px, 0.76fr) minmax(92px, 0.72fr) minmax(70px, 0.52fr) 42px;
   gap: 10px;
   margin-bottom: 6px;
   padding: 0 10px;
@@ -1686,12 +1686,33 @@ textarea {
     align-items: end;
   }
 
+  .name-field {
+    grid-column: 1 / span 2;
+  }
+
+  .fixed-pieces-field {
+    grid-column: 3 / span 2;
+  }
+
   .fixed-product-field {
     grid-column: 1 / span 2;
   }
 
   .keeper-toggle {
     grid-column: 3 / span 2;
+  }
+
+  .rate-field {
+    grid-column: 1 / span 2;
+  }
+
+  .hours-field {
+    grid-column: 3 / span 2;
+  }
+
+  .person-card .remove-row {
+    grid-column: 5;
+    grid-row: 1;
   }
 
   .capacity-hint {
