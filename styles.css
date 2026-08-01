@@ -2133,7 +2133,7 @@ textarea {
   }
 }
 
-/* Výkoňák v9.4 – stále viditelné údaje a čitelnější karty lidí */
+/* Výkoňák v9.5 – kompaktní karty lidí se stále viditelnými údaji */
 .people-header {
   display: none;
 }
@@ -2154,10 +2154,10 @@ textarea {
 }
 
 .people-grid {
-  grid-template-columns: minmax(190px, 1.65fr) 122px 82px minmax(150px, 1fr) 42px;
+  grid-template-columns: minmax(220px, 1fr) 96px 130px 42px;
   grid-template-areas:
-    "name target product keeper remove"
-    "panel panel panel panel panel";
+    "name product target remove"
+    "panel panel panel panel";
   gap: 9px 10px;
   align-items: end;
 }
@@ -2226,24 +2226,14 @@ textarea {
   grid-area: product;
 }
 
-.fixed-product-field input {
+.fixed-product-field select {
   min-height: 46px;
   padding-inline: 5px;
-  font-size: 1.28rem;
+  background: #ffffff;
+  color: var(--strong);
+  font-size: 1.05rem;
   font-weight: 900;
   text-align: center;
-  text-transform: uppercase;
-}
-
-.fixed-product-field input:placeholder-shown {
-  font-size: 0.86rem;
-  font-weight: 800;
-  text-transform: none;
-}
-
-.fixed-product-field input::placeholder {
-  color: #6b7280;
-  opacity: 1;
 }
 
 .person-card .keeper-toggle {
@@ -2337,9 +2327,18 @@ textarea {
 
 .person-details-grid {
   display: grid;
-  grid-template-columns: minmax(150px, 0.62fr) minmax(112px, 0.42fr) minmax(220px, 1.5fr);
+  grid-template-columns: minmax(140px, 0.75fr) 100px minmax(150px, 0.8fr) minmax(220px, 1.5fr);
+  grid-template-areas: "rate hours keeper hint";
   gap: 10px;
   align-items: end;
+}
+
+.person-details-grid .rate-field {
+  grid-area: rate;
+}
+
+.person-details-grid .hours-field {
+  grid-area: hours;
 }
 
 .person-details-grid input {
@@ -2348,7 +2347,7 @@ textarea {
 }
 
 .person-details-grid .capacity-hint {
-  grid-column: auto;
+  grid-area: hint;
   min-height: 44px;
   display: flex;
   align-items: center;
@@ -2388,10 +2387,9 @@ textarea {
   }
 
   .people-grid {
-    grid-template-columns: 64px minmax(0, 1fr) 90px 36px;
+    grid-template-columns: minmax(0, 1fr) 66px 82px 34px;
     grid-template-areas:
-      "name name target remove"
-      "product keeper keeper keeper"
+      "name product target remove"
       "panel panel panel panel";
     gap: 8px 5px;
     align-items: end;
@@ -2426,14 +2424,10 @@ textarea {
     font-size: 0.96rem;
   }
 
-  .fixed-product-field input {
-    min-height: 44px;
-    padding-inline: 3px;
-    font-size: 1.22rem;
-  }
-
-  .fixed-product-field input:placeholder-shown {
-    font-size: 0.78rem;
+  .fixed-product-field select {
+    min-height: 48px;
+    padding: 4px 2px;
+    font-size: 0.82rem;
   }
 
   .person-card .keeper-toggle {
@@ -2469,16 +2463,11 @@ textarea {
   }
 
   .person-details-grid {
-    grid-template-columns: minmax(0, 1fr) 88px;
-    gap: 8px;
-  }
-
-  .person-details-grid .rate-field {
-    grid-column: 1;
-  }
-
-  .person-details-grid .hours-field {
-    grid-column: 2;
+    grid-template-columns: minmax(96px, 1fr) 68px minmax(98px, 0.9fr);
+    grid-template-areas:
+      "rate hours keeper"
+      "hint hint hint";
+    gap: 7px 6px;
   }
 
   .person-details-grid input {
@@ -2487,7 +2476,6 @@ textarea {
   }
 
   .person-details-grid .capacity-hint {
-    grid-column: 1 / -1;
     min-height: 0;
     padding: 8px 9px;
     font-size: 0.76rem;
@@ -2506,7 +2494,7 @@ textarea {
 
 @media (max-width: 380px) {
   .people-grid {
-    grid-template-columns: 60px minmax(0, 1fr) 86px 34px;
+    grid-template-columns: minmax(0, 1fr) 60px 76px 32px;
     gap: 7px 5px;
   }
 

@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="icon-192.png">
     <link rel="apple-touch-icon" href="icon-192.png">
-    <link rel="stylesheet" href="styles.css?v=94">
+    <link rel="stylesheet" href="styles.css?v=95">
   </head>
   <body>
     <div class="app-shell">
@@ -22,7 +22,7 @@
           <h1>Výkoňák</h1>
         </div>
         <div class="topbar-actions">
-          <span class="app-version">v9.4</span>
+          <span class="app-version">v9.5</span>
           <div class="company-mark" aria-label="SOLEA výrobní družstvo">
             <strong>SOLEA</strong>
             <span>výrobní družstvo</span>
@@ -217,19 +217,19 @@
             <div class="name-suggestions" hidden></div>
           </label>
 
+          <label class="fixed-product-field">
+            <span>Z výrobku</span>
+            <select data-field="fixedProduct" aria-label="Vybrat výrobek pro člověka">
+              <option value="">L/C/R</option>
+              <option value="L">L</option>
+              <option value="C">C</option>
+              <option value="R">R</option>
+            </select>
+          </label>
+
           <label class="fixed-pieces-field">
             <span>Cíl kusů</span>
             <input data-field="fixedPieces" type="number" inputmode="numeric" min="1" step="1" placeholder="Cíl">
-          </label>
-
-          <label class="fixed-product-field">
-            <span>Z výrobku</span>
-            <input data-field="fixedProduct" type="text" autocomplete="off" placeholder="L/C/R">
-          </label>
-
-          <label class="keeper-toggle">
-            <input data-field="keeper" type="checkbox">
-            <span>Beru zbytky</span>
           </label>
 
           <button class="icon-button remove-row" type="button" aria-label="Odebrat člověka">
@@ -245,6 +245,10 @@
               <label class="hours-field">
                 <span>Hodiny</span>
                 <input data-field="hours" type="number" inputmode="decimal" min="0.25" step="0.25" placeholder="H">
+              </label>
+              <label class="keeper-toggle">
+                <input data-field="keeper" type="checkbox">
+                <span>Beru zbytky</span>
               </label>
               <div class="capacity-hint" data-capacity-hint></div>
             </div>
@@ -467,6 +471,6 @@
       </section>
     </div>
 
-    <script src="app.js?v=94" defer></script>
+    <script src="app.js?v=95" defer></script>
   </body>
 </html>
