@@ -1,4 +1,4 @@
-const CACHE_NAME = "vykonak-kalkulator-v93";
+const CACHE_NAME = "vykonak-kalkulator-v94";
 const ASSETS = [
   "./",
   "./index.html",

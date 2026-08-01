@@ -452,7 +452,7 @@ label span {
 }
 
 .product-grid {
-  grid-template-columns: minmax(86px, 0.42fr) 42px 42px minmax(160px, 0.88fr);
+  grid-template-columns: minmax(86px, 0.42fr) minmax(112px, 0.34fr) minmax(160px, 0.88fr);
   padding-right: 34px;
 }
 
@@ -560,15 +560,22 @@ textarea:focus {
 
 .calc-open {
   min-height: 44px;
+  padding: 7px 10px;
   border: 1px solid var(--accent);
   border-radius: 8px;
   background: var(--accent-soft);
   color: var(--accent-strong);
+  font-size: 0.88rem;
   font-weight: 900;
 }
 
 .info-toggle {
-  min-height: 44px;
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  z-index: 2;
+  width: 30px;
+  min-height: 30px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #ffffff;
@@ -755,8 +762,19 @@ textarea {
 }
 
 .calc-action {
+  width: auto;
+  min-width: 132px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 12px;
   border-color: var(--accent);
   background: var(--accent-soft);
+}
+
+.calc-action .calc-glyph {
+  flex: 0 0 auto;
 }
 
 .add-product-wrap {
@@ -1186,6 +1204,38 @@ textarea {
   gap: 10px;
 }
 
+.planner-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.planner-summary > div {
+  min-width: 0;
+  padding: 11px 13px;
+  border: 1px solid #a9cbd9;
+  border-radius: 8px;
+  background: #e6f3f8;
+}
+
+.planner-summary span {
+  display: block;
+  margin-bottom: 4px;
+  color: #40566c;
+  font-size: 0.75rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.planner-summary strong {
+  display: block;
+  color: var(--strong);
+  font-size: 1.65rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
 .planner-box-size {
   display: grid;
   grid-template-columns: minmax(82px, 1fr) repeat(2, minmax(82px, 0.85fr));
@@ -1350,40 +1400,164 @@ textarea {
 }
 
 .calc-display {
-  font-size: 1.35rem;
-  font-weight: 800;
+  position: relative;
+  z-index: 1;
+  min-height: 68px;
+  border: 2px solid #82b4c8;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--strong);
+  font-size: 1.8rem;
+  font-weight: 900;
   text-align: right;
 }
 
 .calc-result {
-  min-height: 24px;
-  padding: 5px 2px 8px;
-  color: var(--muted);
-  font-weight: 800;
+  min-height: 42px;
+  padding: 8px 4px 10px;
+  color: var(--accent-strong);
+  font-size: 1.25rem;
+  font-weight: 900;
   text-align: right;
+}
+
+.calc-panel {
+  width: min(470px, calc(100% - 18px));
+  max-height: calc(100dvh - 20px);
+  overflow: auto;
+  padding: 18px;
+  border-color: #8eb9ca;
+  background: #dff0f6;
+}
+
+.calc-panel::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  top: -42px;
+  right: 26px;
+  width: 190px;
+  height: 190px;
+  background: url("solea-heart.svg") center / contain no-repeat;
+  opacity: 0.1;
+  pointer-events: none;
+}
+
+.calc-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.calc-head {
+  min-height: 42px;
+  margin-bottom: 12px;
+}
+
+.calc-head strong {
+  color: var(--strong);
+  font-size: 1.2rem;
+}
+
+.calc-vibration {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+  color: var(--accent-strong);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.calc-vibration input {
+  width: 20px;
+  min-height: 20px;
+  margin: 0;
+  accent-color: var(--accent);
 }
 
 .calc-keys {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 7px;
+  grid-template-areas:
+    "clear back divide multiply"
+    "seven eight nine minus"
+    "four five six plus"
+    "one two three plus"
+    "zero zero decimal equal";
+  gap: 10px;
 }
 
 .calc-keys button {
-  min-height: 42px;
-  border: 1px solid var(--line);
+  min-height: 60px;
+  border: 1px solid #abc7d3;
   border-radius: 8px;
-  background: #f8fafc;
-  color: var(--text);
-  font-size: 1.05rem;
-  font-weight: 800;
+  background: #ffffff;
+  color: var(--strong);
+  box-shadow: 0 3px 8px rgba(7, 86, 120, 0.1);
+  font-size: 1.45rem;
+  font-weight: 900;
+}
+
+.calc-keys button:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 3px rgba(7, 86, 120, 0.14);
+}
+
+.calc-keys [data-calc-key="7"] { grid-area: seven; }
+.calc-keys [data-calc-key="8"] { grid-area: eight; }
+.calc-keys [data-calc-key="9"] { grid-area: nine; }
+.calc-keys [data-calc-key="4"] { grid-area: four; }
+.calc-keys [data-calc-key="5"] { grid-area: five; }
+.calc-keys [data-calc-key="6"] { grid-area: six; }
+.calc-keys [data-calc-key="1"] { grid-area: one; }
+.calc-keys [data-calc-key="2"] { grid-area: two; }
+.calc-keys [data-calc-key="3"] { grid-area: three; }
+.calc-keys [data-calc-key="."] { grid-area: decimal; }
+.calc-keys [data-calc-key="/"] { grid-area: divide; }
+.calc-keys [data-calc-key="*"] { grid-area: multiply; }
+.calc-keys [data-calc-key="-"] { grid-area: minus; }
+.calc-keys [data-calc-key="+"] { grid-area: plus; }
+
+.calc-zero-key {
+  grid-area: zero;
+}
+
+.calc-clear-key {
+  grid-area: clear;
+  border-color: #dcaaaa !important;
+  background: #fff0f0 !important;
+  color: var(--danger) !important;
+}
+
+.calc-backspace-key {
+  grid-area: back;
+}
+
+.calc-operator {
+  border-color: #86b7ca !important;
+  background: #cce7f1 !important;
+  color: var(--accent-strong) !important;
+}
+
+.calc-equals-key {
+  grid-area: equal;
+  border-color: var(--accent-strong) !important;
+  background: var(--accent-strong) !important;
+  color: #ffffff !important;
 }
 
 .calc-actions {
   display: grid;
-  grid-template-columns: 0.8fr 1.2fr;
-  gap: 8px;
-  margin-top: 9px;
+  grid-template-columns: 1fr;
+  margin-top: 12px;
+}
+
+.calc-actions:has(#calcApply[hidden]) {
+  display: none;
+}
+
+.calc-actions .primary-button {
+  min-height: 50px;
+  font-size: 1rem;
 }
 
 @media (max-width: 760px) {
@@ -1507,9 +1681,15 @@ textarea {
 
   .section-actions {
     display: grid;
-    grid-template-columns: minmax(74px, 0.82fr) minmax(86px, 0.95fr) 38px minmax(126px, 1.3fr);
+    grid-template-columns: minmax(74px, 0.8fr) minmax(86px, 1fr);
     gap: 4px;
     align-items: stretch;
+  }
+
+  .section-actions .calc-action,
+  .section-actions .add-product-wrap {
+    min-width: 0;
+    width: 100%;
   }
 
   .section-actions .text-button,
@@ -1531,7 +1711,7 @@ textarea {
   }
 
   .icon-action {
-    width: 38px;
+    width: auto;
     min-height: 38px;
   }
 
@@ -1760,7 +1940,7 @@ textarea {
   }
 
   .product-grid {
-    grid-template-columns: minmax(58px, 0.44fr) 34px 34px minmax(104px, 0.9fr);
+    grid-template-columns: minmax(58px, 0.44fr) minmax(86px, 0.34fr) minmax(104px, 0.9fr);
     padding-right: 25px;
     align-items: end;
   }
@@ -1775,7 +1955,7 @@ textarea {
     grid-template-columns: minmax(82px, 0.42fr) minmax(94px, 1fr);
     gap: 4px;
     margin-top: 4px;
-    padding-right: 25px;
+    padding-right: 34px;
   }
 
   .product-grid [data-field="pieces"] {
@@ -1808,9 +1988,21 @@ textarea {
   }
 
   .product-info select,
-  .product-note input,
-  .info-toggle {
+  .product-note input {
     min-height: 32px;
+  }
+
+  .calc-open {
+    padding-inline: 6px;
+    font-size: 0.75rem;
+    line-height: 1.05;
+  }
+
+  .info-toggle {
+    right: 5px;
+    bottom: 5px;
+    width: 26px;
+    min-height: 26px;
   }
 
   .keeper-toggle {
@@ -1846,8 +2038,8 @@ textarea {
   }
 
   .calc-panel {
-    width: calc(100% - 12px);
-    padding: 9px;
+    width: calc(100% - 14px);
+    padding: 13px;
   }
 
   .record-panel,
@@ -1862,15 +2054,17 @@ textarea {
   }
 
   .calc-display {
-    font-size: 1.18rem;
+    min-height: 66px;
+    font-size: 1.65rem;
   }
 
   .calc-keys {
-    gap: 5px;
+    gap: 9px;
   }
 
   .calc-keys button {
-    min-height: 38px;
+    min-height: 64px;
+    font-size: 1.5rem;
   }
 
   .entry-grid .remove-row {
@@ -1939,7 +2133,7 @@ textarea {
   }
 }
 
-/* Výkoňák v9.3 – kompaktní a čitelnější karty lidí */
+/* Výkoňák v9.4 – stále viditelné údaje a čitelnější karty lidí */
 .people-header {
   display: none;
 }
@@ -1952,18 +2146,18 @@ textarea {
   position: relative;
   overflow: visible;
   padding: 12px;
-  border: 1px solid #c7d2de;
-  border-left: 5px solid var(--accent);
+  border: 1px solid #064d6a;
+  border-left: 6px solid #033d55;
   border-radius: 11px;
-  background: #ffffff;
-  box-shadow: 0 4px 12px rgba(27, 39, 62, 0.08);
+  background: #0b6383;
+  box-shadow: 0 6px 15px rgba(3, 61, 85, 0.24);
 }
 
 .people-grid {
-  grid-template-columns: minmax(190px, 1.65fr) 122px 82px minmax(132px, 0.9fr) 124px 42px;
+  grid-template-columns: minmax(190px, 1.65fr) 122px 82px minmax(150px, 1fr) 42px;
   grid-template-areas:
-    "name target product keeper toggle remove"
-    "panel panel panel panel panel panel";
+    "name target product keeper remove"
+    "panel panel panel panel panel";
   gap: 9px 10px;
   align-items: end;
 }
@@ -1980,7 +2174,7 @@ textarea {
   clip: auto;
   display: block;
   margin: 0 0 5px;
-  color: #536177;
+  color: #eef9fc;
   font-size: 0.78rem;
   font-weight: 800;
   line-height: 1.15;
@@ -1993,6 +2187,7 @@ textarea {
   color: var(--strong);
   font-size: 1.04rem;
   font-weight: 700;
+  background: #ffffff;
 }
 
 .name-field {
@@ -2058,8 +2253,8 @@ textarea {
   justify-content: flex-start;
   gap: 9px;
   padding: 8px 10px;
-  border-color: #cbd5e1;
-  background: #f8fafc;
+  border-color: #a9cbd9;
+  background: #ffffff;
 }
 
 .person-card .keeper-toggle input {
@@ -2131,9 +2326,9 @@ textarea {
   grid-area: panel;
   min-width: 0;
   padding: 10px;
-  border: 1px solid #d6e1e8;
+  border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 9px;
-  background: #f4f8fa;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .person-details-panel[hidden] {
@@ -2196,7 +2391,7 @@ textarea {
     grid-template-columns: 64px minmax(0, 1fr) 90px 36px;
     grid-template-areas:
       "name name target remove"
-      "product keeper toggle toggle"
+      "product keeper keeper keeper"
       "panel panel panel panel";
     gap: 8px 5px;
     align-items: end;
@@ -2204,7 +2399,7 @@ textarea {
 
   .person-card label > span {
     margin-bottom: 4px;
-    color: #526075;
+    color: #eef9fc;
     font-size: 0.75rem;
     font-weight: 900;
     line-height: 1.08;
@@ -2258,13 +2453,6 @@ textarea {
   .person-card .keeper-toggle span {
     font-size: 0.84rem;
     line-height: 1.05;
-  }
-
-  .person-details-toggle {
-    min-height: 44px;
-    gap: 5px;
-    padding-inline: 7px;
-    font-size: 0.8rem;
   }
 
   .person-card .remove-row {
@@ -2324,10 +2512,6 @@ textarea {
 
   .person-card {
     padding-inline: 8px;
-  }
-
-  .person-details-toggle {
-    font-size: 0.76rem;
   }
 
   .fixed-pieces-field input {

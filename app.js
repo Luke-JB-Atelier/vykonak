@@ -1,6 +1,9 @@
 ﻿(function () {
   const STORAGE_KEY = "vykonak-kalkulator-v2";
   const RECORDS_KEY = "vykonak-denni-zaznamy-v1";
+  const CALC_VIBRATION_KEY = "vykonak-calculator-vibration";
+  const DEFAULT_RATE = 45;
+  const DEFAULT_HOURS = 6;
 
   const state = loadState() || {
     people: [
@@ -114,6 +117,8 @@
     plannerSheet: document.querySelector("#plannerSheet"),
     plannerRows: document.querySelector("#plannerRows"),
     plannerPreview: document.querySelector("#plannerPreview"),
+    plannerTotal: document.querySelector("#plannerTotal"),
+    plannerTarget: document.querySelector("#plannerTarget"),
     plannerClose: document.querySelector("#plannerClose"),
     applyProductionPlan: document.querySelector("#applyProductionPlan"),
     installPanel: document.querySelector("#installPanel"),
@@ -129,7 +134,7 @@
     calcResult: document.querySelector("#calcResult"),
     calcApply: document.querySelector("#calcApply"),
     calcClose: document.querySelector("#calcClose"),
-    calcBackspace: document.querySelector("#calcBackspace"),
+    calcVibration: document.querySelector("#calcVibration"),
     standaloneCalc: document.querySelector("#standaloneCalc"),
     calculate: document.querySelector("#calculate"),
     calculateBottom: document.querySelector("#calculateBottom"),
@@ -145,13 +150,23 @@
 
   let deferredInstallPrompt = null;
   let activeCalculator = null;
+  let calculatorJustEvaluated = false;
   let lastCalculationSignature = "";
   let calculationVariant = 0;
   let plannerBoxSize = 168;
   let latestProductionPlan = [];
 
   document.querySelector("#addPerson").addEventListener("click", () => {
-    state.people.push({ id: uid(), name: "", rate: 45, hours: 6, fixedPieces: 0, fixedProduct: "", keeper: false });
+    state.people.push({
+      id: uid(),
+      name: "",
+      rate: DEFAULT_RATE,
+      hours: DEFAULT_HOURS,
+      fixedPieces: DEFAULT_RATE * DEFAULT_HOURS,
+      fixedProduct: "",
+      keeper: false,
+      capacitySource: "target"
+    });
     render();
   });
 
@@ -265,21 +280,35 @@
   els.calcClose.addEventListener("click", closeCalculator);
   els.calcSheet.querySelector("[data-calc-close]").addEventListener("click", closeCalculator);
   els.calcExpression.addEventListener("input", updateCalculatorResult);
-  els.calcBackspace.addEventListener("click", () => {
-    els.calcExpression.value = els.calcExpression.value.slice(0, -1);
-    updateCalculatorResult();
+  els.calcVibration.checked = localStorage.getItem(CALC_VIBRATION_KEY) !== "off";
+  els.calcVibration.addEventListener("change", () => {
+    localStorage.setItem(CALC_VIBRATION_KEY, els.calcVibration.checked ? "on" : "off");
+    vibrateCalculator(els.calcVibration.checked ? 20 : 0);
   });
   els.calcApply.addEventListener("click", applyCalculator);
   els.calcSheet.addEventListener("click", (event) => {
     const keyButton = event.target.closest("[data-calc-key]");
     if (keyButton) {
-      els.calcExpression.value += keyButton.dataset.calcKey;
+      enterCalculatorKey(keyButton.dataset.calcKey);
+      vibrateCalculator();
+      return;
+    }
+    if (event.target.closest("[data-calc-backspace]")) {
+      els.calcExpression.value = els.calcExpression.value.slice(0, -1);
+      calculatorJustEvaluated = false;
       updateCalculatorResult();
+      vibrateCalculator();
+      return;
+    }
+    if (event.target.closest("[data-calc-equals]")) {
+      commitCalculatorResult();
       return;
     }
     if (event.target.closest("[data-calc-clear]")) {
       els.calcExpression.value = "";
+      calculatorJustEvaluated = false;
       updateCalculatorResult();
+      vibrateCalculator(24);
     }
   });
   els.standaloneCalc.addEventListener("click", openStandaloneCalculator);
@@ -378,25 +407,12 @@
       setInput(node, "fixedProduct", person.fixedProduct || "");
       setInput(node, "keeper", person.keeper);
       const nameInput = node.querySelector('[data-field="name"]');
+      const rateInput = node.querySelector('[data-field="rate"]');
+      const hoursInput = node.querySelector('[data-field="hours"]');
+      const targetInput = node.querySelector('[data-field="fixedPieces"]');
       const nameSuggestions = node.querySelector(".name-suggestions");
       const capacityHint = node.querySelector("[data-capacity-hint]");
-      const detailsToggle = node.querySelector(".person-details-toggle");
-      const detailsPanel = node.querySelector(".person-details-panel");
-      const detailsId = `person-details-${person.id}`;
-      detailsPanel.id = detailsId;
-      detailsToggle.setAttribute("aria-controls", detailsId);
-      detailsToggle.setAttribute("aria-label", "Zobrazit podrobnosti člověka");
       updateCapacityHint(capacityHint, person);
-
-      detailsToggle.addEventListener("click", () => {
-        const willOpen = detailsToggle.getAttribute("aria-expanded") !== "true";
-        detailsToggle.setAttribute("aria-expanded", String(willOpen));
-        detailsToggle.setAttribute(
-          "aria-label",
-          willOpen ? "Skrýt podrobnosti člověka" : "Zobrazit podrobnosti člověka"
-        );
-        detailsPanel.hidden = !willOpen;
-      });
 
       node.addEventListener("input", (event) => {
         const field = event.target.dataset.field;
@@ -410,9 +426,25 @@
           person.fixedProduct = event.target.value;
         } else {
           person[field] = Number(event.target.value);
+          if (["fixedPieces", "rate", "hours"].includes(field)) {
+            synchronizePersonCapacity(person, field);
+            if (field !== "fixedPieces") targetInput.value = formatInputValue(person.fixedPieces);
+            if (field !== "rate") rateInput.value = formatInputValue(person.rate);
+          }
         }
         updateCapacityHint(capacityHint, person);
         saveAndUpdateSummary();
+      });
+
+      [targetInput, rateInput, hoursInput].forEach((input) => {
+        input.addEventListener("blur", () => {
+          ensurePersonCapacityValues(person);
+          targetInput.value = formatInputValue(person.fixedPieces);
+          rateInput.value = formatInputValue(person.rate);
+          hoursInput.value = formatInputValue(person.hours);
+          updateCapacityHint(capacityHint, person);
+          saveAndUpdateSummary();
+        });
       });
 
       nameInput.addEventListener("focus", () => {
@@ -453,6 +485,58 @@
     }
 
     container.textContent = parts.join(" | ");
+  }
+
+  function synchronizePersonCapacity(person, editedField) {
+    const target = Math.round(numberOrZero(person.fixedPieces));
+    const rate = numberOrZero(person.rate);
+    const hours = numberOrZero(person.hours);
+
+    if (editedField === "fixedPieces") {
+      person.capacitySource = "target";
+      if (target > 0 && hours > 0) person.rate = roundRate(target / hours);
+      return;
+    }
+
+    if (editedField === "rate") {
+      person.capacitySource = "rate";
+      if (rate > 0 && hours > 0) person.fixedPieces = Math.round(rate * hours);
+      return;
+    }
+
+    if (editedField === "hours" && hours > 0) {
+      if (person.capacitySource === "rate" && rate > 0) {
+        person.fixedPieces = Math.round(rate * hours);
+      } else if (target > 0) {
+        person.rate = roundRate(target / hours);
+      }
+    }
+  }
+
+  function ensurePersonCapacityValues(person) {
+    if (numberOrZero(person.hours) <= 0) person.hours = DEFAULT_HOURS;
+
+    if (numberOrZero(person.fixedPieces) > 0) {
+      if (person.capacitySource === "rate" && numberOrZero(person.rate) > 0) {
+        synchronizePersonCapacity(person, "rate");
+      } else {
+        person.capacitySource = "target";
+        synchronizePersonCapacity(person, "fixedPieces");
+      }
+      return;
+    }
+
+    if (numberOrZero(person.rate) <= 0) person.rate = DEFAULT_RATE;
+    person.capacitySource = "rate";
+    synchronizePersonCapacity(person, "rate");
+  }
+
+  function roundRate(value) {
+    return Math.round(numberOrZero(value) * 10) / 10;
+  }
+
+  function formatInputValue(value) {
+    return numberOrZero(value) > 0 ? String(value) : "";
   }
 
   function renderNameSuggestions(input, container, person) {
@@ -657,11 +741,19 @@
       migrateProductNote(rest);
       return rest;
     });
-    data.people = (data.people || []).map((person) => ({
-      ...person,
-      name: person.name === "Ja" ? "Já" : person.name,
-      fixedProduct: person.fixedProduct || ""
-    }));
+    data.people = (data.people || []).map((person) => {
+      const normalized = {
+        ...person,
+        name: person.name === "Ja" ? "Já" : person.name,
+        rate: numberOrZero(person.rate),
+        hours: numberOrZero(person.hours) || DEFAULT_HOURS,
+        fixedPieces: Math.round(numberOrZero(person.fixedPieces)),
+        fixedProduct: person.fixedProduct || "",
+        capacitySource: person.capacitySource || (numberOrZero(person.fixedPieces) > 0 ? "target" : "rate")
+      };
+      ensurePersonCapacityValues(normalized);
+      return normalized;
+    });
   }
 
   function normalizeProductionColor(color) {
@@ -693,6 +785,7 @@
 
   function openCalculator(input, onApply) {
     activeCalculator = { input, onApply };
+    calculatorJustEvaluated = false;
     input.blur();
     els.calcExpression.value = input.value ? String(input.value) : "";
     els.calcApply.hidden = false;
@@ -702,6 +795,7 @@
 
   function openStandaloneCalculator() {
     activeCalculator = null;
+    calculatorJustEvaluated = false;
     els.calcExpression.value = "";
     els.calcApply.hidden = true;
     els.calcSheet.hidden = false;
@@ -711,6 +805,58 @@
   function closeCalculator() {
     els.calcSheet.hidden = true;
     activeCalculator = null;
+    calculatorJustEvaluated = false;
+  }
+
+  function enterCalculatorKey(key) {
+    const expression = els.calcExpression.value;
+    const isOperator = ["+", "-", "*", "/"].includes(key);
+
+    if (calculatorJustEvaluated && !isOperator) {
+      els.calcExpression.value = key === "." ? "0." : key;
+      calculatorJustEvaluated = false;
+      updateCalculatorResult();
+      return;
+    }
+
+    calculatorJustEvaluated = false;
+    if (isOperator) {
+      if (!expression && key !== "-") return;
+      if (/[+\-*/.]$/.test(expression)) {
+        els.calcExpression.value = expression.slice(0, -1) + key;
+      } else {
+        els.calcExpression.value += key;
+      }
+    } else if (key === ".") {
+      const currentNumber = expression.split(/[+\-*/]/).pop();
+      if (currentNumber.includes(".")) return;
+      els.calcExpression.value += currentNumber ? "." : "0.";
+    } else {
+      els.calcExpression.value += key;
+    }
+    updateCalculatorResult();
+  }
+
+  function commitCalculatorResult() {
+    const value = evaluateCalculator(els.calcExpression.value);
+    if (value === null) {
+      els.calcResult.textContent = "Neplatný výpočet";
+      vibrateCalculator([35, 35, 35]);
+      return;
+    }
+    els.calcExpression.value = formatCalculatorValue(value);
+    calculatorJustEvaluated = true;
+    updateCalculatorResult();
+    vibrateCalculator(28);
+  }
+
+  function formatCalculatorValue(value) {
+    return String(Math.round(value * 10000) / 10000);
+  }
+
+  function vibrateCalculator(pattern = 14) {
+    if (!els.calcVibration.checked || !navigator.vibrate || !pattern) return;
+    navigator.vibrate(pattern);
   }
 
   function updateCalculatorResult() {
@@ -828,6 +974,9 @@
     const capacity = cleanPeople().reduce((acc, person) => acc + effectivePersonPieces(person), 0);
     const stock = readPlannerStock();
     latestProductionPlan = buildProductionPlan(capacity, stock, plannerBoxSize);
+    const total = latestProductionPlan.reduce((acc, item) => acc + item.pieces, 0);
+    els.plannerTotal.textContent = `${total} ks`;
+    els.plannerTarget.textContent = `${capacity} ks`;
     renderProductionPlanPreview(capacity, stock);
   }
 
@@ -930,11 +1079,6 @@
       els.plannerPreview.append(row);
     });
 
-    const total = latestProductionPlan.reduce((acc, item) => acc + item.pieces, 0);
-    const note = document.createElement("div");
-    note.className = "planner-note";
-    note.textContent = `Součet plánu: ${total} ks. Cíl party: ${capacity} ks.`;
-    els.plannerPreview.append(note);
     els.applyProductionPlan.disabled = !latestProductionPlan.length;
   }
 
@@ -1940,7 +2084,7 @@
         fixedProduct: String(person.fixedProduct || "").trim(),
         capacity: Math.round(numberOrZero(person.rate) * numberOrZero(person.hours))
       }))
-      .filter((person) => person.rate > 0 && person.hours > 0);
+      .filter((person) => person.fixedPieces > 0 || (person.rate > 0 && person.hours > 0));
   }
 
   function cleanProducts() {
@@ -2066,4 +2210,3 @@
     return Math.random().toString(36).slice(2, 10);
   }
 })();
-

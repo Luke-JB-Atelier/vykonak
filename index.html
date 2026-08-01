@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="icon-192.png">
     <link rel="apple-touch-icon" href="icon-192.png">
-    <link rel="stylesheet" href="styles.css?v=93">
+    <link rel="stylesheet" href="styles.css?v=94">
   </head>
   <body>
     <div class="app-shell">
@@ -22,7 +22,7 @@
           <h1>Výkoňák</h1>
         </div>
         <div class="topbar-actions">
-          <span class="app-version">v9.3</span>
+          <span class="app-version">v9.4</span>
           <div class="company-mark" aria-label="SOLEA výrobní družstvo">
             <strong>SOLEA</strong>
             <span>výrobní družstvo</span>
@@ -72,7 +72,7 @@
           <div class="section-head">
             <div>
               <h2>Parta</h2>
-              <p>Nejdůležitější jsou jméno a cíl kusů. Výkon a hodiny najdeš v podrobnostech.</p>
+              <p>Cíl kusů, výkon a hodiny se navzájem automaticky dopočítají.</p>
             </div>
             <div class="section-tools">
               <button class="action-button help-button" id="openHelp" type="button" aria-label="Otevřít nápovědu">
@@ -129,8 +129,9 @@
                   <option value="pink">Růžové</option>
                 </select>
               </label>
-              <button class="icon-action calc-action" id="standaloneCalc" type="button" aria-label="Kalkulačka" title="Kalkulačka">
+              <button class="icon-action calc-action" id="standaloneCalc" type="button" aria-label="Otevřít kalkulačku">
                 <span class="calc-glyph" aria-hidden="true"></span>
+                <span>Kalkulačka</span>
               </button>
               <div class="add-product-wrap">
                 <button class="action-button add-action" id="addProduct" type="button" aria-expanded="false" aria-controls="productPicker">
@@ -218,7 +219,7 @@
 
           <label class="fixed-pieces-field">
             <span>Cíl kusů</span>
-            <input data-field="fixedPieces" type="number" inputmode="numeric" min="0" step="1" placeholder="Cíl">
+            <input data-field="fixedPieces" type="number" inputmode="numeric" min="1" step="1" placeholder="Cíl">
           </label>
 
           <label class="fixed-product-field">
@@ -231,24 +232,19 @@
             <span>Beru zbytky</span>
           </label>
 
-          <button class="person-details-toggle" type="button" aria-expanded="false">
-            <span>Podrobnosti</span>
-            <span class="details-chevron" aria-hidden="true">⌄</span>
-          </button>
-
           <button class="icon-button remove-row" type="button" aria-label="Odebrat člověka">
             <span aria-hidden="true">x</span>
           </button>
 
-          <div class="person-details-panel" hidden>
+          <div class="person-details-panel">
             <div class="person-details-grid">
               <label class="rate-field">
                 <span>Kusů za hodinu</span>
-                <input data-field="rate" type="number" inputmode="decimal" min="0" step="0.5" placeholder="Ks/h">
+                <input data-field="rate" type="number" inputmode="decimal" min="0.1" step="0.1" placeholder="Ks/h">
               </label>
               <label class="hours-field">
                 <span>Hodiny</span>
-                <input data-field="hours" type="number" inputmode="decimal" min="0" step="0.25" placeholder="H">
+                <input data-field="hours" type="number" inputmode="decimal" min="0.25" step="0.25" placeholder="H">
               </label>
               <div class="capacity-hint" data-capacity-hint></div>
             </div>
@@ -264,8 +260,8 @@
             <span>Výrobek</span>
             <input data-field="name" type="text" autocomplete="off" placeholder="Výrobek">
           </label>
-          <button class="calc-open" type="button" aria-label="Otevřít kalkulačku">
-            <span aria-hidden="true">=</span>
+          <button class="calc-open" type="button" aria-label="Sečíst kusy v kalkulačce">
+            <span>Sečíst kusy</span>
           </button>
           <button class="info-toggle" type="button" aria-label="Otevřít poznámku">
             <span aria-hidden="true">i</span>
@@ -303,6 +299,10 @@
       <section class="calc-panel" aria-label="Kalkulačka kusů">
         <div class="calc-head">
           <strong>Kalkulačka kusů</strong>
+          <label class="calc-vibration">
+            <input id="calcVibration" type="checkbox" checked>
+            <span>Vibrace</span>
+          </label>
           <button class="icon-button" id="calcClose" type="button" aria-label="Zavřít kalkulačku">
             <span aria-hidden="true">x</span>
           </button>
@@ -310,26 +310,27 @@
         <input id="calcExpression" class="calc-display" type="text" inputmode="none" autocomplete="off" placeholder="3x168+80" readonly>
         <div class="calc-result" id="calcResult">0 ks</div>
         <div class="calc-keys">
+          <button class="calc-clear-key" type="button" data-calc-clear>C</button>
+          <button class="calc-backspace-key" type="button" data-calc-backspace aria-label="Smazat poslední znak">←</button>
+          <button class="calc-operator" type="button" data-calc-key="/">÷</button>
+          <button class="calc-operator" type="button" data-calc-key="*">×</button>
           <button type="button" data-calc-key="7">7</button>
           <button type="button" data-calc-key="8">8</button>
           <button type="button" data-calc-key="9">9</button>
-          <button type="button" data-calc-key="/">/</button>
+          <button class="calc-operator" type="button" data-calc-key="-">−</button>
           <button type="button" data-calc-key="4">4</button>
           <button type="button" data-calc-key="5">5</button>
           <button type="button" data-calc-key="6">6</button>
-          <button type="button" data-calc-key="*">x</button>
+          <button class="calc-operator calc-plus-key" type="button" data-calc-key="+">+</button>
           <button type="button" data-calc-key="1">1</button>
           <button type="button" data-calc-key="2">2</button>
           <button type="button" data-calc-key="3">3</button>
-          <button type="button" data-calc-key="-">-</button>
-          <button type="button" data-calc-key="0">0</button>
+          <button class="calc-zero-key" type="button" data-calc-key="0">0</button>
           <button type="button" data-calc-key=".">,</button>
-          <button type="button" data-calc-clear>C</button>
-          <button type="button" data-calc-key="+">+</button>
+          <button class="calc-equals-key" type="button" data-calc-equals>=</button>
         </div>
         <div class="calc-actions">
-          <button class="text-button" id="calcBackspace" type="button">Smazat</button>
-          <button class="primary-button" id="calcApply" type="button">Vložit</button>
+          <button class="primary-button" id="calcApply" type="button">Vložit do výroby</button>
         </div>
       </section>
     </div>
@@ -367,17 +368,17 @@
 
           <h3>Parta</h3>
           <p><strong>Jméno</strong> je člověk ve směně. Při psaní se nabídnou uložená příjmení.</p>
-          <p><strong>Cíl kusů</strong> je hlavní číslo: kolik má člověk za směnu dostat. Když ho necháš prázdný, cíl se spočítá z kusů za hodinu a délky směny.</p>
+          <p><strong>Cíl kusů</strong> je hlavní číslo: kolik má člověk za směnu dostat. Když cíl změníš, aplikace automaticky přepočítá Kusů za hodinu.</p>
           <p><strong>Z výrobku</strong> vyplň jen tehdy, když má člověk dostat svůj cíl z konkrétní výroby, například L, C nebo R.</p>
           <p><strong>Beru zbytky</strong> označ u člověka, který může dostat rozdělané kusy nebo více různých výrobků.</p>
-          <p>V <strong>Podrobnostech</strong> jsou Kusů za hodinu, Hodiny a pomocný přepočet kapacity.</p>
+          <p><strong>Kusů za hodinu</strong> a <strong>Hodiny</strong> jsou vždy zobrazené. Když začneš těmito údaji, aplikace z nich automaticky dopočítá Cíl kusů.</p>
 
           <h3>Jak zadat výrobu</h3>
           <p><strong>Výrobek</strong> je název, třeba C, R nebo L. <strong>Kusů</strong> je celkový počet daného výrobku.</p>
           <p><strong>Přidat výrobu</strong> vloží samostatný řádek. Volba Jiné dovolí napsat libovolný název.</p>
           <p><strong>Napsat výrobu ručně</strong> přijme více řádků najednou, například „C 336“ a „L 672“. Můžeš je přidat k současné výrobě nebo jí současné řádky nahradit.</p>
           <p><strong>Naplánovat výrobu</strong> používá cíl celé party. Vyber 168 nebo 180 kusů v bedně, tlačítky plus a minus zadej už připravené celé bedny a do Zbytku napiš počet kusů v rozpracované bedně. Potom zvol Použít jako výrobu.</p>
-          <p>Tlačítko <strong>=</strong> otevře kalkulačku pro počet kusů. Tlačítko <strong>i</strong> otevře poznámku.</p>
+          <p><strong>Sečíst kusy</strong> otevře kalkulačku pro počet kusů. Tlačítko <strong>i</strong> v pravém dolním rohu otevře poznámku.</p>
           <p><strong>Celé</strong> znamená celé bedny. <strong>Doplněno</strong> je začátek směny, kdy se dodělává rozpracovaná bedna. <strong>Rozprac.</strong> je konec směny, kdy něco zůstalo v bedně.</p>
 
           <h3>Nastavení, výsledek a uložení</h3>
@@ -398,6 +399,16 @@
           <button class="icon-button" id="plannerClose" type="button" aria-label="Zavřít plánovač">
             <span aria-hidden="true">x</span>
           </button>
+        </div>
+        <div class="planner-summary" aria-live="polite">
+          <div>
+            <span>Součet plánu</span>
+            <strong id="plannerTotal">0 ks</strong>
+          </div>
+          <div>
+            <span>Cíl party</span>
+            <strong id="plannerTarget">0 ks</strong>
+          </div>
         </div>
         <div class="planner-content">
           <div class="planner-box-size">
@@ -456,6 +467,6 @@
       </section>
     </div>
 
-    <script src="app.js?v=93" defer></script>
+    <script src="app.js?v=94" defer></script>
   </body>
 </html>
