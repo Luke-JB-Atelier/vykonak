@@ -65,6 +65,23 @@ button {
   min-width: 0;
 }
 
+.topbar-clear-button {
+  min-height: 30px;
+  margin-top: 7px;
+  padding: 0 10px;
+  border: 1px solid rgba(185, 28, 28, 0.24);
+  border-radius: 7px;
+  background: rgba(254, 242, 242, 0.86);
+  color: #991b1b;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.topbar-clear-button:hover {
+  background: #fee2e2;
+}
+
 .topbar-actions {
   position: relative;
   z-index: 1;
@@ -311,6 +328,26 @@ label span {
   color: var(--muted);
   font-size: 0.92rem;
   line-height: 1.35;
+}
+
+.section-step {
+  margin: 0 0 4px !important;
+  color: var(--accent-strong) !important;
+  font-size: 0.72rem !important;
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.planner-launch-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(210px, 0.7fr);
+  gap: 14px;
+  align-items: center;
+}
+
+.planner-launch-panel .primary-button {
+  width: 100%;
 }
 
 .product-planning-actions {
@@ -1273,13 +1310,38 @@ textarea {
 
 .planner-row {
   display: grid;
-  grid-template-columns: 34px 40px minmax(76px, 1fr) 40px minmax(92px, 0.85fr);
+  grid-template-columns: 56px 40px minmax(76px, 1fr) 40px minmax(92px, 0.85fr);
   gap: 7px;
   align-items: end;
   padding: 8px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fbfcfe;
+}
+
+.planner-row.is-disabled {
+  background: #f1f5f9;
+}
+
+.planner-row.is-disabled > :not(.planner-product-toggle) {
+  opacity: 0.48;
+}
+
+.planner-product-toggle {
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  cursor: pointer;
+}
+
+.planner-product-toggle input {
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 0;
+  accent-color: var(--accent);
 }
 
 .planner-row strong {
@@ -1317,6 +1379,17 @@ textarea {
 
 .planner-preview-row strong:last-child {
   color: var(--strong);
+}
+
+.planner-variant-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.planner-variant-button:disabled {
+  opacity: 0.5;
 }
 
 .planner-note {
@@ -1580,6 +1653,13 @@ textarea {
     gap: 7px;
   }
 
+  .topbar-clear-button {
+    min-height: 28px;
+    margin-top: 5px;
+    padding: 0 8px;
+    font-size: 0.66rem;
+  }
+
   .app-version {
     font-size: 0.56rem;
   }
@@ -1671,6 +1751,11 @@ textarea {
     flex-direction: column;
     gap: 8px;
     margin-bottom: 8px;
+  }
+
+  .planner-launch-panel {
+    grid-template-columns: 1fr;
+    gap: 8px;
   }
 
   .section-tools {
@@ -1866,9 +1951,20 @@ textarea {
   }
 
   .planner-row {
-    grid-template-columns: 26px 34px minmax(64px, 1fr) 34px minmax(76px, 0.86fr);
+    grid-template-columns: 48px 34px minmax(64px, 1fr) 34px minmax(76px, 0.86fr);
     gap: 5px;
     padding: 6px;
+  }
+
+  .planner-product-toggle {
+    gap: 5px;
+    min-height: 34px;
+  }
+
+  .planner-product-toggle input {
+    width: 16px;
+    height: 16px;
+    min-height: 16px;
   }
 
   .planner-choice,

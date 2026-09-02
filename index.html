@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="icon-192.png">
     <link rel="apple-touch-icon" href="icon-192.png">
-    <link rel="stylesheet" href="styles.css?v=95">
+    <link rel="stylesheet" href="styles.css?v=97">
   </head>
   <body>
     <div class="app-shell">
@@ -20,14 +20,15 @@
         <div class="title-block">
           <p class="eyebrow">Rozdělení výkonu</p>
           <h1>Výkoňák</h1>
+          <button class="topbar-clear-button" id="resetApp" type="button">Vymazat údaje</button>
         </div>
         <div class="topbar-actions">
-          <span class="app-version">v9.5</span>
+          <span class="app-version">v9.7</span>
           <div class="company-mark" aria-label="SOLEA výrobní družstvo">
             <strong>SOLEA</strong>
             <span>výrobní družstvo</span>
           </div>
-          <button class="icon-button" id="resetApp" type="button" aria-label="Vymazat vše">
+          <button class="icon-button" id="closeApp" type="button" aria-label="Zavřít Výkoňák">
             <span aria-hidden="true">x</span>
           </button>
         </div>
@@ -71,6 +72,7 @@
         <section class="panel">
           <div class="section-head">
             <div>
+              <p class="section-step">Krok 1</p>
               <h2>Parta</h2>
               <p>Cíl kusů, výkon a hodiny se navzájem automaticky dopočítají.</p>
             </div>
@@ -88,16 +90,24 @@
           <div class="rows" id="peopleRows"></div>
         </section>
 
+        <section class="panel planner-launch-panel">
+          <div>
+            <p class="section-step">Krok 2</p>
+            <h2>Plán výroby</h2>
+          </div>
+          <button class="primary-button" id="openProductionPlanner" type="button">
+            <span class="action-icon" aria-hidden="true">P</span>
+            <span>Naplánovat výrobu</span>
+          </button>
+        </section>
+
         <section class="panel product-panel" id="productPanel">
           <div class="section-head">
             <div>
+              <p class="section-step">Krok 3</p>
               <h2>Výroba</h2>
               <p>Název může být C, R, L, doplněno nebo cokoliv, důležitý je počet kusů.</p>
               <div class="product-planning-actions">
-                <button class="action-button add-action" id="openProductionPlanner" type="button">
-                  <span class="action-icon" aria-hidden="true">P</span>
-                  <span>Naplánovat výrobu</span>
-                </button>
                 <details class="quick-import quick-import-top">
                   <summary>Napsat výrobu ručně</summary>
                   <label>
@@ -180,6 +190,7 @@
         <section class="panel results-panel">
           <div class="section-head">
             <div>
+              <p class="section-step">Krok 4</p>
               <h2>Výsledek</h2>
               <p>Řádky jsou navržené tak, aby součet přesně seděl na zadanou výrobu.</p>
             </div>
@@ -422,7 +433,10 @@
           </div>
           <div class="planner-rows" id="plannerRows">
             <div class="planner-row" data-plan-product="L">
-              <strong>L</strong>
+              <label class="planner-product-toggle">
+                <input data-plan-enabled type="checkbox" checked aria-label="Zahrnout L do plánu">
+                <strong>L</strong>
+              </label>
               <button type="button" data-plan-step="-1">-</button>
               <span data-plan-boxes>0 beden</span>
               <button type="button" data-plan-step="1">+</button>
@@ -432,7 +446,10 @@
               </label>
             </div>
             <div class="planner-row" data-plan-product="C">
-              <strong>C</strong>
+              <label class="planner-product-toggle">
+                <input data-plan-enabled type="checkbox" checked aria-label="Zahrnout C do plánu">
+                <strong>C</strong>
+              </label>
               <button type="button" data-plan-step="-1">-</button>
               <span data-plan-boxes>0 beden</span>
               <button type="button" data-plan-step="1">+</button>
@@ -442,7 +459,10 @@
               </label>
             </div>
             <div class="planner-row" data-plan-product="R">
-              <strong>R</strong>
+              <label class="planner-product-toggle">
+                <input data-plan-enabled type="checkbox" checked aria-label="Zahrnout R do plánu">
+                <strong>R</strong>
+              </label>
               <button type="button" data-plan-step="-1">-</button>
               <span data-plan-boxes>0 beden</span>
               <button type="button" data-plan-step="1">+</button>
@@ -453,6 +473,10 @@
             </div>
           </div>
           <div class="planner-preview" id="plannerPreview"></div>
+          <button class="primary-button planner-variant-button" id="nextProductionPlanVariant" type="button">
+            <span>Varianty</span>
+            <span id="plannerVariantInfo">1 / 1</span>
+          </button>
           <button class="primary-button" id="applyProductionPlan" type="button">Použít jako výrobu</button>
         </div>
       </section>
@@ -471,6 +495,6 @@
       </section>
     </div>
 
-    <script src="app.js?v=95" defer></script>
+    <script src="app.js?v=97" defer></script>
   </body>
 </html>

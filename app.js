@@ -120,6 +120,8 @@
     plannerTotal: document.querySelector("#plannerTotal"),
     plannerTarget: document.querySelector("#plannerTarget"),
     plannerClose: document.querySelector("#plannerClose"),
+    nextProductionPlanVariant: document.querySelector("#nextProductionPlanVariant"),
+    plannerVariantInfo: document.querySelector("#plannerVariantInfo"),
     applyProductionPlan: document.querySelector("#applyProductionPlan"),
     installPanel: document.querySelector("#installPanel"),
     installAndroid: document.querySelector("#installAndroid"),
@@ -154,6 +156,8 @@
   let lastCalculationSignature = "";
   let calculationVariant = 0;
   let plannerBoxSize = 168;
+  let plannerVariant = 0;
+  let productionPlanVariants = [];
   let latestProductionPlan = [];
 
   document.querySelector("#addPerson").addEventListener("click", () => {
@@ -178,6 +182,11 @@
 
   els.plannerSheet.querySelector("[data-planner-close]").addEventListener("click", closeProductionPlanner);
   els.plannerClose.addEventListener("click", closeProductionPlanner);
+  els.nextProductionPlanVariant.addEventListener("click", () => {
+    if (productionPlanVariants.length <= 1) return;
+    plannerVariant = (plannerVariant + 1) % productionPlanVariants.length;
+    updateProductionPlanner();
+  });
   els.applyProductionPlan.addEventListener("click", applyProductionPlan);
 
   els.plannerSheet.querySelectorAll("[data-box-size]").forEach((button) => {
@@ -185,7 +194,7 @@
       plannerBoxSize = Number(button.dataset.boxSize) || 168;
       updatePlannerBoxButtons();
       clampPlannerRemainders();
-      updateProductionPlanner();
+      updateProductionPlanner(true);
     });
   });
 
@@ -196,13 +205,18 @@
     const current = Number(row.dataset.boxCount || 0);
     row.dataset.boxCount = String(Math.max(0, current + Number(stepButton.dataset.planStep)));
     updatePlannerRow(row);
-    updateProductionPlanner();
+    updateProductionPlanner(true);
   });
 
   els.plannerRows.addEventListener("input", (event) => {
+    if (event.target.matches("[data-plan-enabled]")) {
+      updatePlannerRow(event.target.closest("[data-plan-product]"));
+      updateProductionPlanner(true);
+      return;
+    }
     if (!event.target.matches("[data-plan-remainder]")) return;
     event.target.value = String(clampNumber(event.target.value, 0, plannerBoxSize - 1));
-    updateProductionPlanner();
+    updateProductionPlanner(true);
   });
 
   els.productPicker.addEventListener("click", (event) => {
@@ -272,9 +286,23 @@
   });
 
   document.querySelector("#resetApp").addEventListener("click", () => {
-    if (!confirm("Opravdu vymazat zadání a výsledek?")) return;
+    if (!confirm("Opravdu chcete vymazat údaje?")) return;
     localStorage.removeItem(STORAGE_KEY);
     location.reload();
+  });
+
+  document.querySelector("#closeApp").addEventListener("click", async () => {
+    const capacitor = window.Capacitor;
+    const nativeApp = capacitor && capacitor.Plugins && capacitor.Plugins.App;
+    if (nativeApp && typeof capacitor.isNativePlatform === "function" && capacitor.isNativePlatform()) {
+      await nativeApp.exitApp();
+      return;
+    }
+
+    window.close();
+    window.setTimeout(() => {
+      if (!document.hidden) alert("Prohlížeč nedovolil stránce zavřít ručně otevřenou kartu. Zavřete ji křížkem prohlížeče.");
+    }, 250);
   });
 
   els.calcClose.addEventListener("click", closeCalculator);
@@ -940,7 +968,7 @@
     updatePlannerBoxButtons();
     clampPlannerRemainders();
     updatePlannerRows();
-    updateProductionPlanner();
+    updateProductionPlanner(true);
   }
 
   function closeProductionPlanner() {
@@ -958,8 +986,13 @@
   }
 
   function updatePlannerRow(row) {
+    const enabled = row.querySelector("[data-plan-enabled]").checked;
     const count = Math.max(0, Math.round(numberOrZero(row.dataset.boxCount)));
     row.dataset.boxCount = String(count);
+    row.classList.toggle("is-disabled", !enabled);
+    row.querySelectorAll("[data-plan-step], [data-plan-remainder]").forEach((control) => {
+      control.disabled = !enabled;
+    });
     const label = row.querySelector("[data-plan-boxes]");
     label.textContent = `${count} ${formatBoxWord(count)}`;
   }
@@ -970,26 +1003,67 @@
     });
   }
 
-  function updateProductionPlanner() {
+  function updateProductionPlanner(resetVariant = false) {
     const capacity = cleanPeople().reduce((acc, person) => acc + effectivePersonPieces(person), 0);
     const stock = readPlannerStock();
-    latestProductionPlan = buildProductionPlan(capacity, stock, plannerBoxSize);
+    productionPlanVariants = buildProductionPlanVariants(capacity, stock, plannerBoxSize);
+    if (resetVariant) plannerVariant = 0;
+    plannerVariant = productionPlanVariants.length ? plannerVariant % productionPlanVariants.length : 0;
+    latestProductionPlan = productionPlanVariants[plannerVariant] || [];
     const total = latestProductionPlan.reduce((acc, item) => acc + item.pieces, 0);
     els.plannerTotal.textContent = `${total} ks`;
     els.plannerTarget.textContent = `${capacity} ks`;
+    els.plannerVariantInfo.textContent = productionPlanVariants.length
+      ? `${plannerVariant + 1} / ${productionPlanVariants.length}`
+      : "0 / 0";
+    els.nextProductionPlanVariant.disabled = productionPlanVariants.length <= 1;
     renderProductionPlanPreview(capacity, stock);
   }
 
+  function buildProductionPlanVariants(capacity, stock, boxSize) {
+    const recommended = buildProductionPlan(capacity, stock, boxSize);
+    if (recommended.length <= 1) return recommended.length ? [recommended] : [];
+
+    const variants = [];
+    const seen = new Set();
+    permute(recommended.map((item) => item.name)).forEach((names) => {
+      const variant = recommended.map((item, index) => ({
+        name: names[index],
+        pieces: item.pieces
+      }));
+      const signature = variant
+        .map((item) => `${item.name}:${item.pieces}`)
+        .sort((a, b) => a.localeCompare(b, "cs"))
+        .join("|");
+      if (seen.has(signature)) return;
+      seen.add(signature);
+      variants.push(variant);
+    });
+    return variants;
+  }
+
+  function permute(items) {
+    if (items.length <= 1) return [items.slice()];
+    const result = [];
+    items.forEach((item, index) => {
+      const rest = items.slice(0, index).concat(items.slice(index + 1));
+      permute(rest).forEach((tail) => result.push([item, ...tail]));
+    });
+    return result;
+  }
+
   function readPlannerStock() {
-    return Array.from(els.plannerRows.querySelectorAll("[data-plan-product]")).map((row) => ({
-      name: row.dataset.planProduct,
-      boxes: Math.max(0, Math.round(numberOrZero(row.dataset.boxCount))),
-      remainder: clampNumber(row.querySelector("[data-plan-remainder]").value, 0, plannerBoxSize - 1)
-    }));
+    return Array.from(els.plannerRows.querySelectorAll("[data-plan-product]"))
+      .filter((row) => row.querySelector("[data-plan-enabled]").checked)
+      .map((row) => ({
+        name: row.dataset.planProduct,
+        boxes: Math.max(0, Math.round(numberOrZero(row.dataset.boxCount))),
+        remainder: clampNumber(row.querySelector("[data-plan-remainder]").value, 0, plannerBoxSize - 1)
+      }));
   }
 
   function buildProductionPlan(capacity, stock, boxSize) {
-    if (capacity <= 0) return [];
+    if (capacity <= 0 || !stock.length) return [];
 
     const names = stock.map((item) => item.name);
     const starter = stock.find((item) => item.remainder > 0)?.name || chooseLowestStockProduct(stock)?.name || names[0];
@@ -1061,6 +1135,15 @@
       return;
     }
 
+    if (!stock.length) {
+      const note = document.createElement("div");
+      note.className = "planner-note";
+      note.textContent = "Vyber alespoň jeden výrobek pro dnešní plán.";
+      els.plannerPreview.append(note);
+      els.applyProductionPlan.disabled = true;
+      return;
+    }
+
     latestProductionPlan.forEach((item) => {
       const row = document.createElement("div");
       row.className = "planner-preview-row";
@@ -1091,7 +1174,7 @@
         id: uid(),
         name: item.name,
         pieces: item.pieces,
-        noteType: stockItem && stockItem.remainder > 0 ? "rozpracovana" : "",
+        noteType: stockItem && stockItem.remainder > 0 ? "doplneno" : "",
         notePieces: stockItem ? stockItem.remainder : 0,
         note: "",
         color: ""
