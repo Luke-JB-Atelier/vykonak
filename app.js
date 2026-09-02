@@ -113,13 +113,11 @@
     warnings: document.querySelector("#warnings"),
     results: document.querySelector("#results"),
     quickProducts: document.querySelector("#quickProducts"),
-    openProductionPlanner: document.querySelector("#openProductionPlanner"),
-    plannerSheet: document.querySelector("#plannerSheet"),
+    productionPlanner: document.querySelector("#productionPlanner"),
     plannerRows: document.querySelector("#plannerRows"),
     plannerPreview: document.querySelector("#plannerPreview"),
     plannerTotal: document.querySelector("#plannerTotal"),
     plannerTarget: document.querySelector("#plannerTarget"),
-    plannerClose: document.querySelector("#plannerClose"),
     nextProductionPlanVariant: document.querySelector("#nextProductionPlanVariant"),
     plannerVariantInfo: document.querySelector("#plannerVariantInfo"),
     applyProductionPlan: document.querySelector("#applyProductionPlan"),
@@ -178,10 +176,6 @@
     toggleProductPicker();
   });
 
-  els.openProductionPlanner.addEventListener("click", openProductionPlanner);
-
-  els.plannerSheet.querySelector("[data-planner-close]").addEventListener("click", closeProductionPlanner);
-  els.plannerClose.addEventListener("click", closeProductionPlanner);
   els.nextProductionPlanVariant.addEventListener("click", () => {
     if (productionPlanVariants.length <= 1) return;
     plannerVariant = (plannerVariant + 1) % productionPlanVariants.length;
@@ -189,7 +183,7 @@
   });
   els.applyProductionPlan.addEventListener("click", applyProductionPlan);
 
-  els.plannerSheet.querySelectorAll("[data-box-size]").forEach((button) => {
+  els.productionPlanner.querySelectorAll("[data-box-size]").forEach((button) => {
     button.addEventListener("click", () => {
       plannerBoxSize = Number(button.dataset.boxSize) || 168;
       updatePlannerBoxButtons();
@@ -753,7 +747,9 @@
       parts.push(`${part} ks navíc`);
     }
 
-    return parts.length ? parts.join(" + ") : `${pieces} ks`;
+    const completedBoxes = wholeBoxes + (product.noteType === "doplneno" && part > 0 ? 1 : 0);
+    const boxSummary = `(${completedBoxes} ${formatBoxWord(completedBoxes)})`;
+    return parts.length ? `${parts.join(" + ")} ${boxSummary}` : `${pieces} ks ${boxSummary}`;
   }
 
   function normalizeState(data) {
@@ -963,20 +959,8 @@
     return { products: products.filter((product) => product.pieces > 0), skipped };
   }
 
-  function openProductionPlanner() {
-    els.plannerSheet.hidden = false;
-    updatePlannerBoxButtons();
-    clampPlannerRemainders();
-    updatePlannerRows();
-    updateProductionPlanner(true);
-  }
-
-  function closeProductionPlanner() {
-    els.plannerSheet.hidden = true;
-  }
-
   function updatePlannerBoxButtons() {
-    els.plannerSheet.querySelectorAll("[data-box-size]").forEach((button) => {
+    els.productionPlanner.querySelectorAll("[data-box-size]").forEach((button) => {
       button.classList.toggle("is-active", Number(button.dataset.boxSize) === plannerBoxSize);
     });
   }
@@ -1180,7 +1164,6 @@
         color: ""
       };
     });
-    closeProductionPlanner();
     render();
   }
 
@@ -2154,6 +2137,7 @@
     els.totalCapacity.textContent = `${totalCapacity} ks`;
     els.capacityDelta.textContent = `${formatSigned(totalPieces - totalCapacity)} ks`;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    updateProductionPlanner(true);
   }
 
   function cleanPeople() {

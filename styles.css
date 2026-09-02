@@ -339,15 +339,14 @@ label span {
   text-transform: uppercase;
 }
 
-.planner-launch-panel {
+.planner-step-panel {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(210px, 0.7fr);
-  gap: 14px;
-  align-items: center;
+  gap: 12px;
 }
 
-.planner-launch-panel .primary-button {
-  width: 100%;
+.planner-step-panel > .section-head,
+.planner-step-panel > .planner-summary {
+  margin-bottom: 0;
 }
 
 .product-planning-actions {
@@ -1123,8 +1122,7 @@ textarea {
 .calc-sheet,
 .record-sheet,
 .help-sheet,
-.install-sheet,
-.planner-sheet {
+.install-sheet {
   position: fixed;
   inset: 0;
   z-index: 20;
@@ -1134,16 +1132,14 @@ textarea {
 
 .record-sheet[hidden],
 .help-sheet[hidden],
-.install-sheet[hidden],
-.planner-sheet[hidden] {
+.install-sheet[hidden] {
   display: none;
 }
 
 .calc-backdrop,
 .record-backdrop,
 .help-backdrop,
-.install-backdrop,
-.planner-backdrop {
+.install-backdrop {
   position: absolute;
   inset: 0;
   background: rgba(15, 23, 42, 0.34);
@@ -1152,8 +1148,7 @@ textarea {
 .calc-panel,
 .record-panel,
 .help-panel,
-.install-guide-panel,
-.planner-panel {
+.install-guide-panel {
   position: relative;
   width: min(420px, calc(100% - 18px));
   margin: 0 auto calc(10px + env(safe-area-inset-bottom));
@@ -1167,8 +1162,7 @@ textarea {
 .calc-head,
 .record-head,
 .help-head,
-.install-guide-head,
-.planner-head {
+.install-guide-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1179,17 +1173,12 @@ textarea {
 .calc-head strong,
 .record-head strong,
 .help-head strong,
-.install-guide-head strong,
-.planner-head strong {
+.install-guide-head strong {
   color: var(--strong);
 }
 
 .help-panel {
   width: min(560px, calc(100% - 18px));
-}
-
-.planner-panel {
-  width: min(620px, calc(100% - 18px));
 }
 
 .install-guide-panel {
@@ -1239,6 +1228,12 @@ textarea {
 .planner-content {
   display: grid;
   gap: 10px;
+}
+
+.planner-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: 8px;
 }
 
 .planner-summary {
@@ -1753,11 +1748,6 @@ textarea {
     margin-bottom: 8px;
   }
 
-  .planner-launch-panel {
-    grid-template-columns: 1fr;
-    gap: 8px;
-  }
-
   .section-tools {
     display: grid;
     grid-template-columns: minmax(104px, 0.8fr) minmax(0, 1.2fr);
@@ -1935,11 +1925,6 @@ textarea {
 
   .quick-actions {
     flex-direction: column;
-  }
-
-  .planner-panel {
-    width: min(390px, calc(100% - 14px));
-    padding: 10px;
   }
 
   .planner-box-size {
