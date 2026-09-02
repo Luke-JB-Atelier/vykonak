@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="icon-192.png">
     <link rel="apple-touch-icon" href="icon-192.png">
-    <link rel="stylesheet" href="styles.css?v=98">
+    <link rel="stylesheet" href="styles.css?v=99">
   </head>
   <body>
     <div class="app-shell">
@@ -23,7 +23,7 @@
           <button class="topbar-clear-button" id="resetApp" type="button">Vymazat údaje</button>
         </div>
         <div class="topbar-actions">
-          <span class="app-version">v9.8</span>
+          <span class="app-version">v9.9</span>
           <div class="company-mark" aria-label="SOLEA výrobní družstvo">
             <strong>SOLEA</strong>
             <span>výrobní družstvo</span>
@@ -69,7 +69,7 @@
           </div>
         </section>
 
-        <section class="panel">
+        <section class="panel workflow-step" data-workflow-step="1">
           <div class="section-head">
             <div>
               <p class="section-step">Krok 1</p>
@@ -90,7 +90,7 @@
           <div class="rows" id="peopleRows"></div>
         </section>
 
-        <section class="panel planner-step-panel" id="productionPlanner" aria-label="Naplánovat výrobu při začátku směny">
+        <section class="panel workflow-step planner-step-panel" id="productionPlanner" data-workflow-step="2" aria-label="Naplánovat výrobu při začátku směny">
           <div class="section-head">
             <div>
               <p class="section-step">Krok 2</p>
@@ -166,7 +166,7 @@
           </div>
         </section>
 
-        <section class="panel product-panel" id="productPanel">
+        <section class="panel workflow-step product-panel" id="productPanel" data-workflow-step="3">
           <div class="section-head">
             <div>
               <p class="section-step">Krok 3</p>
@@ -484,6 +484,6 @@
       </section>
     </div>
 
-    <script src="app.js?v=98" defer></script>
+    <script src="app.js?v=99" defer></script>
   </body>
 </html>

@@ -186,6 +186,31 @@ main {
   padding: 14px;
 }
 
+.workflow-step {
+  position: relative;
+  overflow: clip;
+  padding-top: 18px;
+  border-color: rgba(7, 86, 120, 0.28);
+  background:
+    linear-gradient(180deg, rgba(223, 241, 248, 0.36), rgba(255, 255, 255, 0) 88px),
+    var(--panel);
+  box-shadow:
+    0 16px 36px rgba(27, 39, 62, 0.11),
+    inset 0 -1px 0 rgba(7, 86, 120, 0.08);
+}
+
+.workflow-step::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 5px;
+  background: linear-gradient(90deg, var(--accent), #1688a1 72%, #d06b2c);
+}
+
+.workflow-step + .workflow-step {
+  margin-top: 4px;
+}
+
 .summary-panel {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -331,7 +356,15 @@ label span {
 }
 
 .section-step {
-  margin: 0 0 4px !important;
+  width: fit-content;
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  margin: 0 0 7px !important;
+  padding: 0 8px;
+  border: 1px solid rgba(7, 86, 120, 0.18);
+  border-radius: 6px;
+  background: var(--accent-soft);
   color: var(--accent-strong) !important;
   font-size: 0.72rem !important;
   font-weight: 900;
@@ -388,6 +421,13 @@ label span {
   border-top: 5px solid var(--product-color, rgba(216, 222, 233, 0.9));
   background:
     linear-gradient(var(--product-bg, #ffffff), var(--product-bg, #ffffff)) padding-box,
+    var(--panel);
+}
+
+.workflow-step.product-panel {
+  border-top: 1px solid rgba(7, 86, 120, 0.28);
+  background:
+    linear-gradient(180deg, rgba(223, 241, 248, 0.36), rgba(255, 255, 255, 0) 88px),
     var(--panel);
 }
 
