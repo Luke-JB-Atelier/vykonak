@@ -187,34 +187,50 @@ main {
 }
 
 .workflow-step {
+  --step-accent: #2e6075;
+  --step-border: #557d8e;
+  --step-surface-start: #abc4ce;
+  --step-surface-end: #cfdee5;
+  --step-badge-bg: #d4e8f0;
+  --step-badge-text: #173f51;
   position: relative;
   overflow: visible;
   padding-top: 18px;
+  border-color: var(--step-border);
+  border-left-width: 3px;
+  background: linear-gradient(180deg, var(--step-surface-start), var(--step-surface-end) 112px);
   box-shadow:
-    0 16px 36px rgba(27, 39, 62, 0.11),
-    inset 0 -1px 0 rgba(7, 86, 120, 0.08);
+    0 12px 28px rgba(27, 39, 62, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.46),
+    inset 0 -1px 0 rgba(23, 32, 51, 0.1);
 }
 
 .workflow-step[data-workflow-step="1"] {
-  border-color: rgba(49, 92, 112, 0.5);
-  background:
-    linear-gradient(180deg, rgba(193, 214, 224, 0.58), rgba(238, 244, 248, 0.92) 92px),
-    #eef4f8;
+  --step-accent: #2e6075;
+  --step-border: #557d8e;
+  --step-surface-start: #abc4ce;
+  --step-surface-end: #cfdee5;
+  --step-badge-bg: #d4e8f0;
+  --step-badge-text: #173f51;
 }
 
 .workflow-step[data-workflow-step="2"] {
-  border-color: rgba(91, 112, 88, 0.52);
-  background:
-    linear-gradient(180deg, rgba(205, 216, 201, 0.62), rgba(239, 242, 237, 0.94) 92px),
-    #eff2ed;
+  --step-accent: #526b50;
+  --step-border: #71856d;
+  --step-surface-start: #b4c6ad;
+  --step-surface-end: #d3dfcf;
+  --step-badge-bg: #dcead7;
+  --step-badge-text: #30472f;
 }
 
 .workflow-step[data-workflow-step="3"] {
+  --step-accent: #81573f;
+  --step-border: #976f58;
+  --step-surface-start: #c9ae99;
+  --step-surface-end: #dfcdc0;
+  --step-badge-bg: #f0ddd0;
+  --step-badge-text: #593823;
   z-index: 2;
-  border-color: rgba(138, 95, 70, 0.52);
-  background:
-    linear-gradient(180deg, rgba(224, 208, 197, 0.64), rgba(243, 238, 234, 0.94) 92px),
-    #f3eeea;
 }
 
 .workflow-step::before {
@@ -222,15 +238,7 @@ main {
   position: absolute;
   inset: 0 0 auto;
   height: 5px;
-  background: #315c70;
-}
-
-.workflow-step[data-workflow-step="2"]::before {
-  background: #5b7058;
-}
-
-.workflow-step[data-workflow-step="3"]::before {
-  background: #8a5f46;
+  background: var(--step-accent);
 }
 
 .workflow-step + .workflow-step {
@@ -398,6 +406,13 @@ label span {
   text-transform: uppercase;
 }
 
+.workflow-step .section-step {
+  border-color: color-mix(in srgb, var(--step-accent) 48%, transparent);
+  background: var(--step-badge-bg);
+  color: var(--step-badge-text) !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32);
+}
+
 .planner-step-panel {
   display: grid;
   gap: 12px;
@@ -451,7 +466,8 @@ label span {
 }
 
 .workflow-step.product-panel {
-  border-top: 1px solid rgba(7, 86, 120, 0.28);
+  border-top: 1px solid var(--step-border);
+  background: linear-gradient(180deg, var(--step-surface-start), var(--step-surface-end) 112px);
 }
 
 .product-color-green-ul {
@@ -1294,9 +1310,16 @@ textarea {
 }
 
 .planner-actions {
+  position: relative;
+  z-index: 3;
   display: grid;
   grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
   gap: 8px;
+  padding: 7px;
+  border: 1px solid rgba(82, 107, 80, 0.4);
+  border-radius: 8px;
+  background: rgba(239, 245, 237, 0.84);
+  box-shadow: 0 5px 14px rgba(40, 61, 45, 0.1);
 }
 
 .planner-summary {
@@ -1444,10 +1467,16 @@ textarea {
   align-items: center;
   justify-content: space-between;
   width: 100%;
+  border-color: #395d55;
+  background: #315f68;
 }
 
 .planner-variant-button:disabled {
-  opacity: 0.5;
+  border-color: #65756e;
+  background: #6b7c75;
+  color: #f4f7f5;
+  opacity: 1;
+  cursor: default;
 }
 
 .planner-note {
