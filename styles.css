@@ -188,15 +188,33 @@ main {
 
 .workflow-step {
   position: relative;
-  overflow: clip;
+  overflow: visible;
   padding-top: 18px;
-  border-color: rgba(7, 86, 120, 0.28);
-  background:
-    linear-gradient(180deg, rgba(223, 241, 248, 0.36), rgba(255, 255, 255, 0) 88px),
-    var(--panel);
   box-shadow:
     0 16px 36px rgba(27, 39, 62, 0.11),
     inset 0 -1px 0 rgba(7, 86, 120, 0.08);
+}
+
+.workflow-step[data-workflow-step="1"] {
+  border-color: rgba(49, 92, 112, 0.5);
+  background:
+    linear-gradient(180deg, rgba(193, 214, 224, 0.58), rgba(238, 244, 248, 0.92) 92px),
+    #eef4f8;
+}
+
+.workflow-step[data-workflow-step="2"] {
+  border-color: rgba(91, 112, 88, 0.52);
+  background:
+    linear-gradient(180deg, rgba(205, 216, 201, 0.62), rgba(239, 242, 237, 0.94) 92px),
+    #eff2ed;
+}
+
+.workflow-step[data-workflow-step="3"] {
+  z-index: 2;
+  border-color: rgba(138, 95, 70, 0.52);
+  background:
+    linear-gradient(180deg, rgba(224, 208, 197, 0.64), rgba(243, 238, 234, 0.94) 92px),
+    #f3eeea;
 }
 
 .workflow-step::before {
@@ -204,7 +222,15 @@ main {
   position: absolute;
   inset: 0 0 auto;
   height: 5px;
-  background: linear-gradient(90deg, var(--accent), #1688a1 72%, #d06b2c);
+  background: #315c70;
+}
+
+.workflow-step[data-workflow-step="2"]::before {
+  background: #5b7058;
+}
+
+.workflow-step[data-workflow-step="3"]::before {
+  background: #8a5f46;
 }
 
 .workflow-step + .workflow-step {
@@ -426,9 +452,6 @@ label span {
 
 .workflow-step.product-panel {
   border-top: 1px solid rgba(7, 86, 120, 0.28);
-  background:
-    linear-gradient(180deg, rgba(223, 241, 248, 0.36), rgba(255, 255, 255, 0) 88px),
-    var(--panel);
 }
 
 .product-color-green-ul {
