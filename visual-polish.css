@@ -1,0 +1,113 @@
+/* Vizuální doladění Výkoňáku – 2026-09-05.
+   Pouze vzhled: původní layout, funkce, texty a komponenty zůstávají beze změny. */
+
+body {
+  background: linear-gradient(180deg,
+    #f4f7fa 0%,
+    #e9f0f5 16%,
+    #ccdae4 34%,
+    #91aabd 53%,
+    #55758c 69%,
+    #294b63 84%,
+    #0b2234 100%
+  );
+}
+
+/* Původní světlá hlavička zůstává světlá. */
+.topbar {
+  background: rgba(250, 252, 253, 0.9);
+  border: 1px solid rgba(216, 222, 233, 0.72);
+  box-shadow: 0 7px 18px rgba(27, 39, 62, 0.06);
+}
+
+/* Hlavní karty bez silného levého „boku“. */
+.workflow-step {
+  border-left-width: 1px;
+  border-radius: 9px 3px 9px 3px;
+}
+
+/* Jemný uříznutý roh – pouze vizuální, obsah karty se neořezává. */
+.workflow-step::after {
+  content: "";
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 15px;
+  height: 15px;
+  pointer-events: none;
+  background: linear-gradient(225deg, var(--step-accent) 0 48%, transparent 51%);
+  opacity: 0.7;
+}
+
+/* Krok 1 zůstává v původní modré. */
+.workflow-step[data-workflow-step="1"] {
+  --step-accent: #2e6075;
+  --step-border: #557d8e;
+  --step-surface-start: #abc4ce;
+  --step-surface-end: #cfdee5;
+  --step-badge-bg: #d4e8f0;
+  --step-badge-text: #173f51;
+}
+
+/* Krok 2: stejná zelená rodina, o něco sytější. */
+.workflow-step[data-workflow-step="2"] {
+  --step-accent: #356c49;
+  --step-border: #5f8068;
+  --step-surface-start: #a7c3a7;
+  --step-surface-end: #ceddcc;
+  --step-badge-bg: #d7ead6;
+  --step-badge-text: #24452c;
+}
+
+/* Krok 3: místo hnědé jemná švestková/fialová. */
+.workflow-step[data-workflow-step="3"] {
+  --step-accent: #665486;
+  --step-border: #80709e;
+  --step-surface-start: #b9b0cc;
+  --step-surface-end: #d9d4e4;
+  --step-badge-bg: #e7e1f1;
+  --step-badge-text: #43345f;
+}
+
+/* Vybraná výrobní barva se lehce propíše do celé karty Krok 3. */
+.workflow-step.product-panel[class*="product-color-"] {
+  border-color: color-mix(in srgb, var(--product-color) 58%, var(--step-border));
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--product-color) 22%, var(--step-surface-start)),
+    color-mix(in srgb, var(--product-color) 10%, var(--step-surface-end)) 128px
+  );
+}
+
+.workflow-step.product-panel[class*="product-color-"]::before {
+  background: var(--product-color);
+}
+
+/* Výraznější výrobní paleta. */
+.product-color-green-ul { --product-color: #35a853; --product-bg: #d9f1df; }
+.product-color-blue { --product-color: #169bc2; --product-bg: #d8f0f6; }
+.product-color-yellow { --product-color: #e0bd18; --product-bg: #f8efb9; }
+.product-color-honey,
+.product-color-gold { --product-color: #d39212; --product-bg: #f7e5b5; }
+.product-color-orange { --product-color: #e96819; --product-bg: #f8ddca; }
+.product-color-pink { --product-color: #d93b82; --product-bg: #f5d3e2; }
+.product-color-bordeaux { --product-color: #7b1734; --product-bg: #ecd0d8; }
+
+.color-picker option[value="green-ul"] { background: #5fc274; color: #102b18; }
+.color-picker option[value="honey"] { background: #e0a322; color: #2f2100; }
+.color-picker option[value="bordeaux"] { background: #7b1734; color: #ffffff; }
+.color-picker option[value="blue"] { background: #45b7d4; color: #0a2d37; }
+.color-picker option[value="yellow"] { background: #efd94b; color: #312b00; }
+.color-picker option[value="orange"] { background: #f07b32; color: #2f1500; }
+.color-picker option[value="pink"] { background: #e75a99; color: #35101f; }
+
+/* Uříznuté rohy jen na malých ovládacích tlačítkách: zavřít/odebrat a +/- v plánovači. */
+.icon-button,
+.planner-row > button[data-plan-step] {
+  border-radius: 5px;
+  clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 7px 100%, 0 calc(100% - 7px));
+}
+
+@media (max-width: 760px) {
+  .topbar { background: rgba(250, 252, 253, 0.94); }
+  .workflow-step::after { width: 12px; height: 12px; }
+}
