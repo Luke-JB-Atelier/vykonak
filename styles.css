@@ -1,2 +1,231 @@
-@import url("./styles-base.css?v=912");
-@import url("./visual-polish.css?v=1");
+@import url("./styles-v912-base.css");
+
+/* Visual tune 2026-09-05: preserve layout, refine palette and TipCore-like details. */
+
+:root {
+  --bg: #e9eff3;
+  --shadow: 0 10px 24px rgba(19, 42, 57, 0.12);
+}
+
+body {
+  background:
+    linear-gradient(
+      180deg,
+      #f2f5f7 0%,
+      #e6edf1 15%,
+      #cedbe2 30%,
+      #9fb5c1 48%,
+      #668497 66%,
+      #345569 82%,
+      #102c3c 100%
+    );
+  background-attachment: fixed;
+}
+
+/* Keep the original light header identity. */
+.topbar {
+  background: rgba(244, 247, 249, 0.97);
+  border: 1px solid rgba(206, 216, 224, 0.82);
+  box-shadow: 0 7px 18px rgba(34, 56, 72, 0.08);
+}
+
+/* Main workflow cards: same layout, cleaner sides, subtle cut-corner surface. */
+.workflow-step {
+  position: relative;
+  isolation: isolate;
+  border-color: transparent;
+  border-left-width: 1px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.workflow-step::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border: 1px solid var(--step-border);
+  background: linear-gradient(180deg, var(--step-surface-start), var(--step-surface-end) 112px);
+  clip-path: polygon(
+    0 0,
+    calc(100% - 13px) 0,
+    100% 13px,
+    100% 100%,
+    13px 100%,
+    0 calc(100% - 13px)
+  );
+  box-shadow: 0 9px 22px rgba(20, 42, 55, 0.13);
+  pointer-events: none;
+}
+
+.workflow-step::before {
+  right: 13px;
+  border-radius: 0;
+}
+
+/* Krok 1 stays blue, only slightly richer. */
+.workflow-step[data-workflow-step="1"] {
+  --step-accent: #2b647d;
+  --step-border: #4c7a8e;
+  --step-surface-start: #9ebfcd;
+  --step-surface-end: #c9dce4;
+  --step-badge-bg: #d3e8f0;
+  --step-badge-text: #153f52;
+}
+
+/* Krok 2 remains green, but less washed-out. */
+.workflow-step[data-workflow-step="2"] {
+  --step-accent: #3e7854;
+  --step-border: #5f8669;
+  --step-surface-start: #a5c5aa;
+  --step-surface-end: #cfdfd1;
+  --step-badge-bg: #d6ead9;
+  --step-badge-text: #244d31;
+}
+
+/* Krok 3 is no longer brown: neutral plum/indigo base. */
+.workflow-step[data-workflow-step="3"] {
+  --step-accent: #65558a;
+  --step-border: #7e70a0;
+  --step-surface-start: #c0b7d4;
+  --step-surface-end: #ddd8e9;
+  --step-badge-bg: #e5dff0;
+  --step-badge-text: #3e315f;
+}
+
+/* Remove the heavy left-side treatment from person cards too. */
+.person-card {
+  border-left-width: 1px;
+  box-shadow: 0 5px 14px rgba(3, 61, 85, 0.13);
+}
+
+/* Cut corners only on small utility controls, not on every button. */
+.icon-button,
+.planner-row button[data-plan-step],
+.person-card .remove-row,
+.product-grid .remove-row {
+  border-radius: 4px;
+  clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 7px 100%, 0 calc(100% - 7px));
+}
+
+/* Stronger product colors. */
+.product-color-green-ul {
+  --product-color: #3f9b55;
+  --product-bg: #e3f2e5;
+}
+
+.product-color-blue {
+  --product-color: #2193b0;
+  --product-bg: #e1f3f7;
+}
+
+.product-color-yellow {
+  --product-color: #e1bd13;
+  --product-bg: #fff3a8;
+}
+
+.product-color-honey,
+.product-color-gold {
+  --product-color: #c78e09;
+  --product-bg: #f8e2a9;
+}
+
+.product-color-orange {
+  --product-color: #e96f16;
+  --product-bg: #ffe0c5;
+}
+
+.product-color-pink {
+  --product-color: #d83f84;
+  --product-bg: #f7d0e2;
+}
+
+.product-color-bordeaux {
+  --product-color: #7f1737;
+  --product-bg: #edcbd5;
+}
+
+/* Selected production color also tints the whole Krok 3 card. */
+#productPanel.product-color-green-ul {
+  --step-accent: #3f8f52;
+  --step-border: #5b9468;
+  --step-surface-start: #9fc7a8;
+  --step-surface-end: #d2e5d5;
+  --step-badge-bg: #d9eddd;
+  --step-badge-text: #245332;
+}
+
+#productPanel.product-color-blue {
+  --step-accent: #247f9a;
+  --step-border: #4e91a6;
+  --step-surface-start: #9bc5d1;
+  --step-surface-end: #d1e5ea;
+  --step-badge-bg: #d9edf2;
+  --step-badge-text: #174c5c;
+}
+
+#productPanel.product-color-yellow {
+  --step-accent: #b89b12;
+  --step-border: #c5ae43;
+  --step-surface-start: #d8c763;
+  --step-surface-end: #f0e6aa;
+  --step-badge-bg: #f6edbd;
+  --step-badge-text: #5d5008;
+}
+
+#productPanel.product-color-honey,
+#productPanel.product-color-gold {
+  --step-accent: #a97809;
+  --step-border: #b78f31;
+  --step-surface-start: #cfac58;
+  --step-surface-end: #ecd79f;
+  --step-badge-bg: #f2e2b8;
+  --step-badge-text: #604406;
+}
+
+#productPanel.product-color-orange {
+  --step-accent: #c75d12;
+  --step-border: #d17839;
+  --step-surface-start: #e7a168;
+  --step-surface-end: #f4d0ae;
+  --step-badge-bg: #f7dcc3;
+  --step-badge-text: #6e3107;
+}
+
+#productPanel.product-color-pink {
+  --step-accent: #b9316d;
+  --step-border: #c75d89;
+  --step-surface-start: #d98aaa;
+  --step-surface-end: #efc4d6;
+  --step-badge-bg: #f4d2e0;
+  --step-badge-text: #671738;
+}
+
+#productPanel.product-color-bordeaux {
+  --step-accent: #74142f;
+  --step-border: #8d3650;
+  --step-surface-start: #c17d91;
+  --step-surface-end: #e9bcc8;
+  --step-badge-bg: #f0ccd5;
+  --step-badge-text: #551022;
+}
+
+/* Make the native dropdown choices visually clearer where the platform permits it. */
+.color-picker option[value="green-ul"] { background: #dff1e2; color: #17662b; }
+.color-picker option[value="honey"] { background: #f8e1a8; color: #725000; }
+.color-picker option[value="bordeaux"] { background: #eac4cf; color: #74142f; }
+.color-picker option[value="blue"] { background: #dceff4; color: #126a80; }
+.color-picker option[value="yellow"] { background: #fff1a0; color: #665600; }
+.color-picker option[value="orange"] { background: #ffd9b8; color: #9a3f00; }
+.color-picker option[value="pink"] { background: #f5c6da; color: #9e245a; }
+
+@media (max-width: 760px) {
+  .topbar {
+    background: rgba(242, 246, 248, 0.97);
+  }
+
+  .person-card {
+    border-left-width: 1px;
+    box-shadow: 0 4px 11px rgba(27, 39, 62, 0.08);
+  }
+}
