@@ -5,6 +5,7 @@
 :root {
   --bg: #e9eff3;
   --shadow: 0 10px 24px rgba(19, 42, 57, 0.12);
+  --paper-shadow: 0 10px 22px rgba(20, 42, 55, 0.12);
 }
 
 body {
@@ -24,19 +25,48 @@ body {
 
 /* Keep the original light header identity. */
 .topbar {
+  position: sticky;
+  top: 0;
+  z-index: 16;
+  backdrop-filter: blur(12px);
   background: rgba(244, 247, 249, 0.97);
   border: 1px solid rgba(206, 216, 224, 0.82);
   box-shadow: 0 7px 18px rgba(34, 56, 72, 0.08);
 }
 
-/* Main workflow cards: same layout, cleaner sides, subtle cut-corner surface. */
+/* Only the background is cut; dropdowns and focus rings can extend beyond it. */
 .workflow-step {
   position: relative;
   isolation: isolate;
-  border-color: transparent;
-  border-left-width: 1px;
+  border: 0;
+  border-radius: 0;
   background: transparent;
   box-shadow: none;
+  --tear-top: 24%;
+  --tear-side: 68%;
+  --tear-depth: 7px;
+  --step-clip: polygon(
+    12px 0,
+    var(--tear-top) 0,
+    calc(var(--tear-top) + 7px) 3px,
+    calc(var(--tear-top) + 13px) var(--tear-depth),
+    calc(var(--tear-top) + 20px) 2px,
+    calc(var(--tear-top) + 24px) 4px,
+    calc(var(--tear-top) + 28px) 1px,
+    calc(var(--tear-top) + 31px) 2px,
+    calc(var(--tear-top) + 35px) 0,
+    calc(100% - 9px) 0, 100% 11px,
+    100% calc(100% - 7px), calc(100% - 13px) 100%,
+    8px 100%, 0 calc(100% - 12px),
+    0 calc(var(--tear-side) + 31px),
+    2px calc(var(--tear-side) + 28px),
+    1px calc(var(--tear-side) + 25px),
+    5px calc(var(--tear-side) + 20px),
+    3px calc(var(--tear-side) + 16px),
+    var(--tear-depth) calc(var(--tear-side) + 8px),
+    2px calc(var(--tear-side) + 4px),
+    0 var(--tear-side), 0 8px
+  );
 }
 
 .workflow-step::after {
@@ -44,23 +74,16 @@ body {
   position: absolute;
   inset: 0;
   z-index: -1;
-  border: 1px solid var(--step-border);
-  background: linear-gradient(180deg, var(--step-surface-start), var(--step-surface-end) 112px);
-  clip-path: polygon(
-    0 0,
-    calc(100% - 13px) 0,
-    100% 13px,
-    100% 100%,
-    13px 100%,
-    0 calc(100% - 13px)
-  );
-  box-shadow: 0 9px 22px rgba(20, 42, 55, 0.13);
+  border: 0;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--step-accent) 10%, transparent), transparent 34%),
+    linear-gradient(180deg, var(--step-surface-start), var(--step-surface-end) 116px);
+  clip-path: var(--step-clip);
   pointer-events: none;
 }
 
 .workflow-step::before {
-  right: 13px;
-  border-radius: 0;
+  display: none;
 }
 
 /* Krok 1 stays blue, only slightly richer. */
@@ -71,6 +94,9 @@ body {
   --step-surface-end: #c9dce4;
   --step-badge-bg: #d3e8f0;
   --step-badge-text: #153f52;
+  --tear-top: 27%;
+  --tear-side: 73%;
+  --tear-depth: 7px;
 }
 
 /* Krok 2 remains green, but less washed-out. */
@@ -81,31 +107,172 @@ body {
   --step-surface-end: #cfdfd1;
   --step-badge-bg: #d6ead9;
   --step-badge-text: #244d31;
+  --step-clip: polygon(
+    7px 0, calc(100% - 14px) 0, 100% 8px,
+    100% 39%,
+    calc(100% - 3px) calc(39% + 4px),
+    calc(100% - 8px) calc(39% + 9px),
+    calc(100% - 2px) calc(39% + 16px),
+    calc(100% - 4px) calc(39% + 20px),
+    calc(100% - 1px) calc(39% + 24px),
+    calc(100% - 2px) calc(39% + 27px),
+    100% calc(39% + 30px),
+    100% calc(100% - 13px), calc(100% - 8px) 100%,
+    61% 100%,
+    calc(61% - 5px) calc(100% - 2px),
+    calc(61% - 9px) calc(100% - 7px),
+    calc(61% - 18px) calc(100% - 2px),
+    calc(61% - 22px) calc(100% - 4px),
+    calc(61% - 26px) calc(100% - 1px),
+    calc(61% - 29px) calc(100% - 2px),
+    calc(61% - 33px) 100%,
+    13px 100%, 0 calc(100% - 7px), 0 12px
+  );
 }
 
-/* Krok 3 is no longer brown: neutral plum/indigo base. */
+/* Blue is the default production color. */
 .workflow-step[data-workflow-step="3"] {
-  --step-accent: #65558a;
-  --step-border: #7e70a0;
-  --step-surface-start: #c0b7d4;
-  --step-surface-end: #ddd8e9;
-  --step-badge-bg: #e5dff0;
-  --step-badge-text: #3e315f;
+  --step-accent: #247f9a;
+  --step-border: #4e91a6;
+  --step-surface-start: #9bc5d1;
+  --step-surface-end: #d1e5ea;
+  --step-badge-bg: #d9edf2;
+  --step-badge-text: #174c5c;
+  --tear-top: 62%;
+  --tear-side: 46%;
+  --tear-depth: 6px;
 }
 
-/* Remove the heavy left-side treatment from person cards too. */
+/* Nested rows stay quiet; people have four simple, matching corner cuts. */
 .person-card {
+  border-color: transparent;
   border-left-width: 1px;
-  box-shadow: 0 5px 14px rgba(3, 61, 85, 0.13);
+  border-radius: 0;
+  clip-path: polygon(
+    9px 0, calc(100% - 9px) 0, 100% 9px,
+    100% calc(100% - 9px), calc(100% - 9px) 100%,
+    9px 100%, 0 calc(100% - 9px), 0 9px
+  );
+  box-shadow: none;
 }
 
-/* Cut corners only on small utility controls, not on every button. */
+.summary-panel > div,
+.entry-card:not(.person-card) {
+  clip-path: none;
+}
+
+.install-platform-button,
+.planner-choice,
+.quick-import summary,
+.product-planning-actions > .action-button,
+.section-tools .action-button,
+.calc-action,
+.calc-open,
+.add-action {
+  border-color: transparent;
+  background: #d7edf4;
+  box-shadow: none;
+  color: #074a62;
+  clip-path: none;
+}
+
+.primary-button {
+  border-color: transparent;
+  box-shadow: none;
+  clip-path: none;
+}
+
+.install-platform-button:hover,
+.planner-choice:hover,
+.quick-import summary:hover,
+.product-planning-actions > .action-button:hover,
+.section-tools .action-button:hover,
+.calc-action:hover,
+.calc-open:hover,
+.add-action:hover {
+  background: #c9e7f0;
+}
+
+.planner-choice.is-active,
+.quick-import[open] summary,
+.add-product-wrap:has(.add-action[aria-expanded="true"]) .add-action {
+  border-color: transparent;
+  background: #0f7896;
+  box-shadow: none;
+  color: #ffffff;
+}
+
+.install-platform-button,
+.planner-choice,
+.quick-import summary,
+.product-planning-actions > .action-button,
+.section-tools .action-button,
+.calc-action,
+.calc-open,
+.add-action,
+.primary-button,
+.text-button,
+select {
+  clip-path: none;
+}
+
+.summary-panel > div {
+  border-color: transparent;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(245, 250, 252, 0.95)),
+    var(--panel);
+  box-shadow: inset 0 0 0 1px rgba(72, 116, 137, 0.14);
+}
+
+.summary-panel strong,
+.person-card input,
+.product-grid input,
+.product-note input,
+.product-select,
+.color-picker,
+.planner-row input,
+.keeper-toggle,
+.calc-display,
+.calc-keys button {
+  background-color: #f8fbfc;
+}
+
+.color-picker,
+.color-picker select,
+.product-select,
+#productionColor {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+/* Utility controls use a plain silhouette. */
 .icon-button,
 .planner-row button[data-plan-step],
 .person-card .remove-row,
 .product-grid .remove-row {
   border-radius: 4px;
-  clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 7px 100%, 0 calc(100% - 7px));
+  border-color: transparent;
+  clip-path: none;
+}
+
+.planner-row button[data-plan-step] {
+  background: #eef7fa;
+  clip-path: none;
+}
+
+.person-card .remove-row,
+.product-grid .remove-row {
+  background: #fffafa;
+  clip-path: none;
+}
+
+.help-button,
+.planner-variant-button {
+  clip-path: none;
+}
+
+.section-tools .action-button:not(.help-button) {
+  clip-path: none;
 }
 
 /* Stronger product colors. */
@@ -210,6 +377,46 @@ body {
   --step-badge-text: #551022;
 }
 
+.workflow-step.product-panel {
+  border: 0;
+  background: transparent;
+}
+
+.product-card {
+  --product-row-color: var(--product-color, #2193b0);
+  border: 0;
+  border-top: 0;
+  border-radius: 6px;
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--product-row-color) 58%, #ffffff),
+      color-mix(in srgb, var(--product-row-color) 42%, #ffffff) 100%
+    );
+  box-shadow: none;
+  clip-path: none;
+}
+
+.color-picker,
+.product-card select,
+.product-card button,
+.product-card input {
+  clip-path: none;
+}
+
+.product-card input,
+.product-card select,
+.product-card .product-note input {
+  border-color: transparent;
+  background-color: #f8fbfc;
+  box-shadow: none;
+}
+
+.product-card .product-info select,
+.product-card .product-note input {
+  background-color: rgba(248, 251, 252, 0.92);
+}
+
 /* Make the native dropdown choices visually clearer where the platform permits it. */
 .color-picker option[value="green-ul"] { background: #dff1e2; color: #17662b; }
 .color-picker option[value="honey"] { background: #f8e1a8; color: #725000; }
@@ -219,6 +426,300 @@ body {
 .color-picker option[value="orange"] { background: #ffd9b8; color: #9a3f00; }
 .color-picker option[value="pink"] { background: #f5c6da; color: #9e245a; }
 
+/* A full-width toolbar keeps the title and controls from competing for space. */
+.product-panel > .section-head {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.product-panel > .section-head > div,
+.product-panel .section-actions > * {
+  min-width: 0;
+}
+
+.product-panel .section-actions {
+  display: grid;
+  grid-template-columns: minmax(96px, 0.65fr) repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 8px;
+}
+
+.product-panel .section-actions :is(.inline-total, select, button) {
+  width: 100%;
+  min-width: 0;
+  height: 46px;
+  min-height: 46px;
+  border: 0;
+  border-radius: 7px;
+  box-shadow: none;
+}
+
+.product-panel .section-actions :is(select, .calc-action, .add-action) {
+  padding: 0 12px;
+  background-color: #d7edf4;
+  color: #074a62;
+  font-size: 0.9rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.product-panel .color-picker {
+  display: block;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.product-panel .color-picker select {
+  padding-right: 28px;
+}
+
+.product-panel .section-actions :is(.calc-action, .add-action) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  white-space: normal;
+}
+
+.product-panel .section-actions :is(.calc-action, .add-action):hover {
+  background-color: #c9e7f0;
+}
+
+.product-panel .section-actions .add-action[aria-expanded="true"] {
+  background-color: #0f7896;
+  color: #ffffff;
+}
+
+.product-panel .section-actions .action-icon {
+  flex: 0 0 20px;
+}
+
+.toolbar-icon {
+  display: block;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+}
+
+.product-panel .quick-import summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: 7px;
+  font-size: 0.9rem;
+  line-height: 1.25;
+}
+
+.product-panel .section-actions :is(button, select):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.planner-row label:has([data-plan-remainder]) {
+  min-width: 0;
+}
+
+.planner-row [data-plan-to-finish] {
+  display: block;
+  margin-top: 4px;
+  color: #35575b;
+  font-size: 0.72rem;
+  line-height: 1.3;
+}
+
+@media (max-width: 760px) {
+  .planner-row {
+    grid-template-columns: 48px 34px minmax(0, 1fr) 34px;
+  }
+
+  .planner-row label:has([data-plan-remainder]) {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 88px;
+    align-items: center;
+    gap: 0 8px;
+  }
+
+  .planner-row label:has([data-plan-remainder]) > span {
+    font-size: 0.74rem;
+    line-height: 1.3;
+  }
+
+  .planner-row [data-plan-remainder] {
+    grid-column: 2;
+    grid-row: 1 / 3;
+    min-height: 44px;
+  }
+}
+
+.planner-completion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #fff0c2;
+  color: #58430d;
+}
+
+.planner-completion[hidden] {
+  display: none;
+}
+
+.planner-completion strong {
+  font-size: 0.9rem;
+}
+
+.planner-completion p {
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.planner-completion .text-button {
+  min-height: 44px;
+  max-width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  background: #e0bd57;
+  color: #332803;
+  white-space: normal;
+}
+
+.product-card.has-combined-info .product-info {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.product-card .product-breakdown {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 3px;
+  min-width: 0;
+  line-height: 1.35;
+  font-size: 0.72rem;
+}
+
+.product-breakdown strong {
+  color: #244655;
+  font-size: 0.78rem;
+}
+
+.product-partials {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+  padding-right: 34px;
+}
+
+.product-partials[hidden] {
+  display: none;
+}
+
+.product-card .product-partials label > span {
+  position: static;
+  display: block;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip: auto;
+  margin-bottom: 4px;
+  color: #244655;
+  font-size: 0.75rem;
+  line-height: 1.3;
+}
+
+.product-partials input {
+  min-width: 0;
+  min-height: 44px;
+}
+
+.product-card .product-partials input[aria-invalid="true"] {
+  background: #ffe2e2;
+}
+
+.product-breakdown.has-error {
+  background: #ffe2e2;
+  color: #8f2424;
+}
+
+.result-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.record-interval {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 128px;
+  align-items: center;
+  gap: 10px;
+  width: min(100%, 330px);
+  min-width: 0;
+}
+
+.record-interval span {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.3;
+}
+
+.record-interval select {
+  min-width: 0;
+  height: 44px;
+  border-color: transparent;
+  background-color: #e8f2f6;
+  color: #174c5c;
+  font-size: 0.88rem;
+}
+
+.record-interval select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+html {
+  scroll-padding-top: 148px;
+}
+
+@media (max-width: 760px) {
+  .product-panel .section-actions {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .product-panel .inline-total {
+    grid-column: span 1;
+    padding-inline: 6px;
+    overflow-wrap: anywhere;
+  }
+
+  .product-panel .color-picker {
+    grid-column: span 3;
+  }
+
+  .product-panel .section-actions > :is(.calc-action, .add-product-wrap) {
+    grid-column: span 2;
+  }
+
+  .product-panel .section-actions :is(.calc-action, .add-action) {
+    padding-inline: 8px;
+  }
+
+  html {
+    scroll-padding-top: 120px;
+  }
+}
+
 @media (max-width: 760px) {
   .topbar {
     background: rgba(242, 246, 248, 0.97);
@@ -226,6 +727,6 @@ body {
 
   .person-card {
     border-left-width: 1px;
-    box-shadow: 0 4px 11px rgba(27, 39, 62, 0.08);
+    box-shadow: none;
   }
 }

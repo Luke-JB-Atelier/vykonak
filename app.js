@@ -4,6 +4,9 @@
   const CALC_VIBRATION_KEY = "vykonak-calculator-vibration";
   const DEFAULT_RATE = 45;
   const DEFAULT_HOURS = 6;
+  const DEFAULT_PRODUCTION_COLOR = "blue";
+  const PREFERRED_PRODUCT_ROWS = 2;
+  const DEFAULT_BOX_COMPLETION_LIMIT = 10;
 
   const state = loadState() || {
     people: [
@@ -16,9 +19,9 @@
       { id: uid(), name: "", pieces: 0, noteType: "", notePieces: 0, note: "", color: "" }
     ],
     settings: {
-      maxRows: 2,
       minRecordHours: 0.5,
-      productionColor: ""
+      boxCompletionLimit: DEFAULT_BOX_COMPLETION_LIMIT,
+      productionColor: DEFAULT_PRODUCTION_COLOR
     }
   };
 
@@ -108,8 +111,8 @@
     productPanel: document.querySelector("#productPanel"),
     productionColor: document.querySelector("#productionColor"),
     productPicker: document.querySelector("#productPicker"),
-    maxRows: document.querySelector("#maxRows"),
     minRecordHours: document.querySelector("#minRecordHours"),
+    boxCompletionLimit: document.querySelector("#boxCompletionLimit"),
     warnings: document.querySelector("#warnings"),
     results: document.querySelector("#results"),
     quickProducts: document.querySelector("#quickProducts"),
@@ -118,6 +121,10 @@
     plannerPreview: document.querySelector("#plannerPreview"),
     plannerTotal: document.querySelector("#plannerTotal"),
     plannerTarget: document.querySelector("#plannerTarget"),
+    plannerCompletion: document.querySelector("#plannerCompletion"),
+    plannerCompletionTitle: document.querySelector("#plannerCompletionTitle"),
+    plannerCompletionDetail: document.querySelector("#plannerCompletionDetail"),
+    completePlannerBox: document.querySelector("#completePlannerBox"),
     nextProductionPlanVariant: document.querySelector("#nextProductionPlanVariant"),
     plannerVariantInfo: document.querySelector("#plannerVariantInfo"),
     applyProductionPlan: document.querySelector("#applyProductionPlan"),
@@ -157,6 +164,8 @@
   let plannerVariant = 0;
   let productionPlanVariants = [];
   let latestProductionPlan = [];
+  let plannerCompletionOffer = null;
+  let completedProductionPlan = null;
 
   document.querySelector("#addPerson").addEventListener("click", () => {
     state.people.push({
@@ -178,10 +187,25 @@
 
   els.nextProductionPlanVariant.addEventListener("click", () => {
     if (productionPlanVariants.length <= 1) return;
+    completedProductionPlan = null;
     plannerVariant = (plannerVariant + 1) % productionPlanVariants.length;
     updateProductionPlanner();
   });
   els.applyProductionPlan.addEventListener("click", applyProductionPlan);
+  els.completePlannerBox.addEventListener("click", () => {
+    const offer = plannerCompletionOffer;
+    if (!offer) return;
+    completedProductionPlan = {
+      source: plannerSourceSignature(),
+      offer,
+      plan: latestProductionPlan.map((item) => ({
+        ...item,
+        pieces: item.pieces + (item.name === offer.name ? offer.extra : 0)
+      }))
+    };
+    updateProductionPlanner();
+    applyProductionPlan();
+  });
 
   els.productionPlanner.querySelectorAll("[data-box-size]").forEach((button) => {
     button.addEventListener("click", () => {
@@ -342,13 +366,13 @@
   els.helpClose.addEventListener("click", closeHelp);
   els.helpSheet.querySelector("[data-help-close]").addEventListener("click", closeHelp);
 
-  els.maxRows.addEventListener("change", () => {
-    state.settings.maxRows = Number(els.maxRows.value);
+  els.minRecordHours.addEventListener("change", () => {
+    state.settings.minRecordHours = Number(els.minRecordHours.value);
     saveAndUpdateSummary();
   });
 
-  els.minRecordHours.addEventListener("change", () => {
-    state.settings.minRecordHours = Number(els.minRecordHours.value);
+  els.boxCompletionLimit.addEventListener("change", () => {
+    state.settings.boxCompletionLimit = Number(els.boxCompletionLimit.value);
     saveAndUpdateSummary();
   });
 
@@ -378,10 +402,10 @@
   updateInstallButtons();
 
   render();
+  restoreCalculation();
 
   function handleCalculate(scrollToResults) {
-    renderResults(calculateNextPlan());
-    setCalculateVariantHint(true);
+    storeCalculation(calculateNextPlan());
     if (scrollToResults) {
       document.querySelector("#results").scrollIntoView({ behavior: "smooth", block: "start" });
     }
@@ -399,9 +423,9 @@
 
   function render() {
     updateTodayInfo();
-    els.maxRows.value = String(state.settings.maxRows);
     els.minRecordHours.value = String(state.settings.minRecordHours);
-    els.productionColor.value = state.settings.productionColor || "";
+    els.boxCompletionLimit.value = String(state.settings.boxCompletionLimit);
+    els.productionColor.value = normalizeProductionColor(state.settings.productionColor);
     applyProductionColor();
     renderPeople();
     renderProducts();
@@ -608,11 +632,24 @@
   function renderProducts() {
     els.productRows.replaceChildren();
     state.products.forEach((product) => {
+      fillProductInfoPieces(product);
       const node = els.productTemplate.content.firstElementChild.cloneNode(true);
       setInput(node, "name", product.name);
       setInput(node, "pieces", product.pieces);
       setInput(node, "noteType", product.noteType || "");
       setInput(node, "note", product.note || "");
+      const syncPartialInputs = () => {
+        const combined = product.noteType === "doplneno-rozpracovana";
+        node.classList.toggle("has-combined-info", combined);
+        node.querySelector(".product-partials").hidden = !combined;
+        const invalid = combined && Boolean(productPartialError(product));
+        node.querySelectorAll(".product-partials input").forEach((input) => {
+          if (document.activeElement !== input) input.value = String(product[input.dataset.field] || 0);
+          input.max = String(productBoxPieces(product) - 1);
+          input.setAttribute("aria-invalid", String(invalid));
+        });
+      };
+      syncPartialInputs();
       const noteToggle = node.querySelector(".info-toggle");
       const noteField = node.querySelector(".product-note");
       const breakdown = node.querySelector(".product-breakdown");
@@ -624,14 +661,25 @@
       node.addEventListener("input", (event) => {
         const field = event.target.dataset.field;
         if (!field) return;
+        const previousType = product.noteType;
+        if (["noteType", "notePieces", "unfinishedPieces"].includes(field)) delete product.startingPieces;
         if (field === "name" || field === "noteType" || field === "note") {
           product[field] = event.target.value;
         } else {
           product[field] = Number(event.target.value);
         }
         if (field === "noteType" || field === "pieces") {
+          if (field === "noteType" && product.noteType === "doplneno-rozpracovana" && previousType === "rozpracovana") {
+            product.unfinishedPieces = product.notePieces || 0;
+            product.notePieces = 0;
+          }
           fillProductInfoPieces(product, field === "noteType");
+          if (field === "pieces") setInput(node, "noteType", product.noteType || "");
         }
+        if (field === "notePieces" || field === "unfinishedPieces") {
+          balanceProductPartials(product, field);
+        }
+        syncPartialInputs();
         updateProductBreakdown(product, breakdown);
         saveAndUpdateSummary();
       });
@@ -645,6 +693,8 @@
         openCalculator(node.querySelector('[data-field="pieces"]'), (value) => {
           product.pieces = value;
           fillProductInfoPieces(product);
+          setInput(node, "noteType", product.noteType || "");
+          syncPartialInputs();
           updateProductBreakdown(product, breakdown);
           saveAndUpdateSummary();
         });
@@ -699,11 +749,30 @@
   }
 
   function fillProductInfoPieces(product, force = false) {
+    if (Number.isInteger(product.startingPieces)) {
+      const split = splitShiftProduction(product.pieces, product.startingPieces, productBoxPieces(product));
+      product.noteType = split.completed > 0
+        ? split.unfinished > 0 ? "doplneno-rozpracovana" : "doplneno"
+        : split.unfinished > 0 ? "rozpracovana" : "";
+      product.notePieces = split.completed || split.unfinishedNew;
+      product.unfinishedPieces = split.unfinishedNew;
+      return;
+    }
+    if (product.noteType === "doplneno-rozpracovana") {
+      balanceProductPartials(product);
+      return;
+    }
     if (!product.noteType || !["doplneno", "rozpracovana"].includes(product.noteType)) return;
 
-    const boxPieces = defaultBoxPieces();
+    const boxPieces = productBoxPieces(product);
     const pieces = Math.round(numberOrZero(product.pieces));
     if (!pieces || !boxPieces) return;
+
+    if (!force && product.noteType === "doplneno" && product.notePieces > 0) {
+      product.unfinishedPieces = Math.max(0, pieces - product.notePieces) % boxPieces;
+      if (product.unfinishedPieces > 0) product.noteType = "doplneno-rozpracovana";
+      return;
+    }
 
     const remainder = pieces % boxPieces;
     if (!remainder) {
@@ -714,46 +783,112 @@
     product.notePieces = remainder;
   }
 
-  function updateProductBreakdown(product, element) {
-    if (!element) return;
-    element.textContent = formatProductBreakdown(product);
+  function balanceProductPartials(product, editedField = "notePieces") {
+    if (product.noteType !== "doplneno-rozpracovana") return;
+    const pieces = Math.max(0, Math.round(numberOrZero(product.pieces)));
+    const edited = numberOrZero(product[editedField]);
+    if (!Number.isInteger(edited) || edited < 0 || edited > pieces || edited >= productBoxPieces(product)) return;
+    const otherField = editedField === "unfinishedPieces" ? "notePieces" : "unfinishedPieces";
+    product[otherField] = (pieces - edited) % productBoxPieces(product);
   }
 
-  function formatProductBreakdown(product) {
-    const boxPieces = defaultBoxPieces();
-    const pieces = Math.round(numberOrZero(product.pieces));
-    if (!pieces || !boxPieces) return "";
+  function productBoxPieces(product) {
+    return [168, 180].includes(product.boxSize) ? product.boxSize : defaultBoxPieces();
+  }
 
-    const manualPart = Math.round(numberOrZero(product.notePieces));
-    const isPartial = ["doplneno", "rozpracovana"].includes(product.noteType || "");
-    const part = isPartial && manualPart > 0 ? manualPart : pieces % boxPieces;
-    const parts = [];
+  // Only new pieces count toward the shift; inherited pieces still complete a physical box.
+  function splitShiftProduction(pieces, startingPieces, boxSize) {
+    const made = Math.max(0, Math.round(numberOrZero(pieces)));
+    const inherited = clampNumber(startingPieces, 0, boxSize - 1);
+    const needed = inherited > 0 ? boxSize - inherited : 0;
+    const completed = needed > 0 && made >= needed ? needed : 0;
+    const stillInFirstBox = inherited > 0 && made < needed;
+    const remaining = made - completed;
+    const wholeBoxes = stillInFirstBox ? 0 : Math.floor(remaining / boxSize);
+    const unfinishedNew = stillInFirstBox ? made : remaining % boxSize;
+    return {
+      inherited,
+      completed,
+      wholeBoxes,
+      unfinishedNew,
+      unfinished: stillInFirstBox ? inherited + made : unfinishedNew,
+      deliveredBoxes: wholeBoxes + (completed > 0 ? 1 : 0)
+    };
+  }
 
-    if (product.noteType === "doplneno" && part > 0) {
-      parts.push(`${part} doplněno`);
+  function updateProductBreakdown(product, element) {
+    if (!element) return;
+    const error = productPartialError(product);
+    element.classList.toggle("has-error", Boolean(error));
+    if (error) {
+      element.textContent = error;
+      return;
     }
+    const description = describeProductBreakdown(product);
+    const summary = document.createElement("strong");
+    summary.textContent = description.summary;
+    const details = document.createElement("span");
+    details.textContent = description.details.join(" | ");
+    element.replaceChildren(summary, details);
+  }
 
-    const wholeBase = isPartial ? pieces - part : pieces;
+  function productPartialError(product) {
+    if (product.noteType !== "doplneno-rozpracovana") return "";
+    const completed = numberOrZero(product.notePieces);
+    const unfinished = numberOrZero(product.unfinishedPieces);
+    if (completed < 0 || unfinished < 0 || !Number.isInteger(completed) || !Number.isInteger(unfinished)) {
+      return "Počty kusů musí být celá nezáporná čísla.";
+    }
+    if (completed >= productBoxPieces(product) || unfinished >= productBoxPieces(product)) {
+      return `Jednotlivá část musí být menší než bedna (${productBoxPieces(product)} ks).`;
+    }
+    const excess = completed + unfinished - Math.round(numberOrZero(product.pieces));
+    return excess > 0 ? `Doplněno a rozpracováno přesahují celkový počet o ${excess} ks.` : "";
+  }
+
+  function describeProductBreakdown(product) {
+    const boxPieces = productBoxPieces(product);
+    if (Number.isInteger(product.startingPieces)) {
+      const split = splitShiftProduction(product.pieces, product.startingPieces, boxPieces);
+      const details = [];
+      if (split.inherited > 0) details.push(`Po předchozí směně: ${split.inherited} ks`);
+      if (split.completed > 0) details.push(`Doplněno: ${split.completed} ks`);
+      if (split.wholeBoxes > 0) details.push(`Celé: ${split.wholeBoxes} ${formatBoxWord(split.wholeBoxes)} (${split.wholeBoxes * boxPieces} ks)`);
+      if (split.unfinished > 0) {
+        details.push(`Rozpracováno: ${split.unfinished} ks` + (split.unfinished !== split.unfinishedNew ? ` (dnes ${split.unfinishedNew} ks)` : ""));
+      }
+      return { summary: `Odevzdáno: ${split.deliveredBoxes} ${formatBoxWord(split.deliveredBoxes)}`, details };
+    }
+    const pieces = Math.max(0, Math.round(numberOrZero(product.pieces)));
+    const combined = product.noteType === "doplneno-rozpracovana";
+    const manualPart = Math.max(0, Math.round(numberOrZero(product.notePieces)));
+    const part = manualPart > 0 ? Math.min(manualPart, pieces) : pieces % boxPieces;
+    const completed = combined ? manualPart : product.noteType === "doplneno" ? part : 0;
+    const unfinished = combined
+      ? Math.max(0, Math.round(numberOrZero(product.unfinishedPieces)))
+      : product.noteType === "doplneno" ? 0 : product.noteType === "rozpracovana" ? part : pieces % boxPieces;
+    const wholeBase = pieces - completed - unfinished;
     const wholeBoxes = Math.max(0, Math.floor(wholeBase / boxPieces));
-    if (wholeBoxes <= 4) {
-      for (let i = 0; i < wholeBoxes; i += 1) parts.push(`${boxPieces} celé`);
-    } else {
-      parts.push(`${wholeBoxes} celé x ${boxPieces}`);
-    }
-
-    if (product.noteType === "rozpracovana" && part > 0) {
-      parts.push(`${part} zbylo`);
-    } else if (!isPartial && part > 0) {
-      parts.push(`${part} ks navíc`);
-    }
-
-    const completedBoxes = wholeBoxes + (product.noteType === "doplneno" && part > 0 ? 1 : 0);
-    const boxSummary = `(${completedBoxes} ${formatBoxWord(completedBoxes)})`;
-    return parts.length ? `${parts.join(" + ")} ${boxSummary}` : `${pieces} ks ${boxSummary}`;
+    const deliveredBoxes = wholeBoxes + (completed > 0 ? 1 : 0);
+    const details = [];
+    if (completed > 0) details.push(`Doplněno: ${completed} ks`);
+    if (wholeBoxes > 0) details.push(`Celé: ${wholeBoxes} ${formatBoxWord(wholeBoxes)} (${wholeBoxes * boxPieces} ks)`);
+    if (unfinished > 0) details.push(`Rozpracováno: ${unfinished} ks`);
+    return {
+      summary: `Odevzdáno: ${deliveredBoxes} ${formatBoxWord(deliveredBoxes)}`,
+      details
+    };
   }
 
   function normalizeState(data) {
     data.settings = data.settings || {};
+    delete data.settings.maxRows;
+    if (![0.25, 0.5, 1].includes(Number(data.settings.minRecordHours))) {
+      data.settings.minRecordHours = 0.5;
+    }
+    if (data.settings.boxCompletionLimit == null || ![0, 5, 10, 15, 20, 25, 30].includes(Number(data.settings.boxCompletionLimit))) {
+      data.settings.boxCompletionLimit = DEFAULT_BOX_COMPLETION_LIMIT;
+    }
     if (!("productionColor" in data.settings)) {
       const colored = (data.products || []).find((product) => product.color);
       data.settings.productionColor = colored ? colored.color : "";
@@ -782,7 +917,7 @@
 
   function normalizeProductionColor(color) {
     if (color === "gold") return "honey";
-    return color || "";
+    return color || DEFAULT_PRODUCTION_COLOR;
   }
 
   function isUlProductionColor(color) {
@@ -793,6 +928,7 @@
     product.note = product.note || "";
     product.noteType = product.noteType || "";
     product.notePieces = Math.round(numberOrZero(product.notePieces));
+    product.unfinishedPieces = Math.round(numberOrZero(product.unfinishedPieces));
 
     if (!product.noteType && product.note) {
       const lower = product.note.toLowerCase();
@@ -979,6 +1115,8 @@
     });
     const label = row.querySelector("[data-plan-boxes]");
     label.textContent = `${count} ${formatBoxWord(count)}`;
+    const inherited = clampNumber(row.querySelector("[data-plan-remainder]").value, 0, plannerBoxSize - 1);
+    row.querySelector("[data-plan-to-finish]").textContent = `Do celé bedny doplnit: ${plannerBoxSize - inherited} ks`;
   }
 
   function clampPlannerRemainders() {
@@ -988,12 +1126,18 @@
   }
 
   function updateProductionPlanner(resetVariant = false) {
+    updatePlannerRows();
     const capacity = cleanPeople().reduce((acc, person) => acc + effectivePersonPieces(person), 0);
     const stock = readPlannerStock();
     productionPlanVariants = buildProductionPlanVariants(capacity, stock, plannerBoxSize);
     if (resetVariant) plannerVariant = 0;
     plannerVariant = productionPlanVariants.length ? plannerVariant % productionPlanVariants.length : 0;
     latestProductionPlan = productionPlanVariants[plannerVariant] || [];
+    if (completedProductionPlan && completedProductionPlan.source === plannerSourceSignature()) {
+      latestProductionPlan = completedProductionPlan.plan;
+    } else {
+      completedProductionPlan = null;
+    }
     const total = latestProductionPlan.reduce((acc, item) => acc + item.pieces, 0);
     els.plannerTotal.textContent = `${total} ks`;
     els.plannerTarget.textContent = `${capacity} ks`;
@@ -1002,6 +1146,46 @@
       : "0 / 0";
     els.nextProductionPlanVariant.disabled = productionPlanVariants.length <= 1;
     renderProductionPlanPreview(capacity, stock);
+    updatePlannerCompletion(capacity);
+  }
+
+  function plannerSourceSignature() {
+    return JSON.stringify({
+      people: cleanPeople().map((person) => ({ id: person.id, target: effectivePersonPieces(person), product: person.fixedProduct, keeper: person.keeper })),
+      stock: readPlannerStock(),
+      boxSize: plannerBoxSize,
+      completionLimit: Number(state.settings.boxCompletionLimit)
+    });
+  }
+
+  function completionReceiver(productName, people = cleanPeople()) {
+    return people
+      .filter((person) => !person.fixedProduct || normalizeProductName(person.fixedProduct) === normalizeProductName(productName))
+      .sort((a, b) => Number(b.keeper) - Number(a.keeper))[0];
+  }
+
+  function updatePlannerCompletion(capacity) {
+    plannerCompletionOffer = null;
+    if (capacity > 0 && !completedProductionPlan) {
+      const stock = readPlannerStock();
+      plannerCompletionOffer = latestProductionPlan
+        .map((item) => {
+          const inherited = stock.find((entry) => entry.name === item.name)?.remainder || 0;
+          return { name: item.name, extra: plannerBoxSize - ((item.pieces + inherited) % plannerBoxSize) };
+        })
+        .filter((item) => item.extra >= 1 && item.extra <= Number(state.settings.boxCompletionLimit))
+        .sort((a, b) => a.extra - b.extra)[0] || null;
+    }
+    const offer = plannerCompletionOffer;
+    els.plannerCompletion.hidden = !offer;
+    if (!offer) return;
+    const total = sum(latestProductionPlan, "pieces") + offer.extra;
+    const receiver = completionReceiver(offer.name);
+    els.plannerCompletionTitle.textContent = `${offer.name}: do celé bedny chybí ${offer.extra} ks`;
+    els.plannerCompletionDetail.textContent = `Plán ${total} ks, tedy +${total - capacity} ks nad cíl party. `
+      + (receiver ? `Kusy navíc: ${receiver.name}.` : "Chybí člověk, který může tento výrobek převzít.");
+    els.completePlannerBox.textContent = `Dokončit bednu (+${offer.extra} ks)`;
+    els.completePlannerBox.disabled = !receiver;
   }
 
   function buildProductionPlanVariants(capacity, stock, boxSize) {
@@ -1015,13 +1199,21 @@
         name: names[index],
         pieces: item.pieces
       }));
+      // Close the non-final products at physical box boundaries; carry their unused work forward.
+      for (let index = 0; index < variant.length - 1; index += 1) {
+        const item = variant[index];
+        const inherited = stock.find((entry) => entry.name === item.name)?.remainder || 0;
+        const carry = Math.min(item.pieces, (item.pieces + inherited) % boxSize);
+        item.pieces -= carry;
+        variant[variant.length - 1].pieces += carry;
+      }
       const signature = variant
         .map((item) => `${item.name}:${item.pieces}`)
         .sort((a, b) => a.localeCompare(b, "cs"))
         .join("|");
       if (seen.has(signature)) return;
       seen.add(signature);
-      variants.push(variant);
+      variants.push(variant.filter((item) => item.pieces > 0));
     });
     return variants;
   }
@@ -1135,11 +1327,11 @@
       name.textContent = item.name;
       const info = document.createElement("span");
       const stockItem = stock.find((stockRow) => stockRow.name === item.name);
-      if (stockItem && stockItem.remainder > 0) {
-        info.textContent = `do výkonu, fyzicky dodělat ${Math.max(0, item.pieces - stockItem.remainder)} ks`;
-      } else {
-        info.textContent = "do výkonu zapsat";
-      }
+      const split = splitShiftProduction(item.pieces, stockItem?.remainder || 0, plannerBoxSize);
+      const details = [`Vyrobit dnes; odevzdat ${split.deliveredBoxes} ${formatBoxWord(split.deliveredBoxes)}`];
+      if (split.completed > 0) details.push(`z toho doplnit ${split.completed} ks`);
+      if (split.unfinished > 0) details.push(`rozpracováno ${split.unfinished} ks`);
+      info.textContent = details.join("; ");
       const pieces = document.createElement("strong");
       pieces.textContent = `${item.pieces} ks`;
       row.append(name, info, pieces);
@@ -1154,17 +1346,50 @@
     const stock = readPlannerStock();
     state.products = latestProductionPlan.map((item) => {
       const stockItem = stock.find((stockRow) => stockRow.name === item.name);
-      return {
+      const product = {
         id: uid(),
         name: item.name,
         pieces: item.pieces,
-        noteType: stockItem && stockItem.remainder > 0 ? "doplneno" : "",
-        notePieces: stockItem ? stockItem.remainder : 0,
-        note: "",
-        color: ""
+        startingPieces: stockItem?.remainder || 0,
+        boxSize: plannerBoxSize,
+        note: ""
       };
+      fillProductInfoPieces(product);
+      return product;
     });
+    delete state.settings.boxCompletion;
+    if (completedProductionPlan) {
+      const offer = completedProductionPlan.offer;
+      const product = state.products.find((item) => item.name === offer.name);
+      const receiver = completionReceiver(offer.name);
+      if (product && receiver) {
+        state.settings.boxCompletion = {
+          productId: product.id,
+          receiverId: receiver.id,
+          pieces: offer.extra,
+          signature: completionInputSignature()
+        };
+      }
+    }
     render();
+  }
+
+  function completionInputSignature() {
+    return JSON.stringify({
+      people: state.people.map(({ id, fixedPieces, fixedProduct, rate, hours, keeper }) => ({ id, fixedPieces, fixedProduct, rate, hours, keeper })),
+      products: state.products.map(({ id, name, pieces, startingPieces, boxSize }) => ({ id, name, pieces, startingPieces, boxSize })),
+      color: state.settings.productionColor
+    });
+  }
+
+  function acceptedBoxCompletion(people, products) {
+    const completion = state.settings.boxCompletion;
+    if (!completion || completion.signature !== completionInputSignature()) return null;
+    if (!Number.isInteger(completion.pieces) || completion.pieces < 1 || completion.pieces > 30) return null;
+    const product = products.find((item) => item.id === completion.productId && item.pieces >= completion.pieces);
+    const receiver = people.find((person) => person.id === completion.receiverId);
+    if (!product || !receiver || (receiver.fixedProduct && normalizeProductName(receiver.fixedProduct) !== normalizeProductName(product.name))) return null;
+    return { ...completion, product, receiver };
   }
 
   function formatBoxWord(count) {
@@ -1185,8 +1410,10 @@
   }
 
   function getCalculationSignature() {
+    const completion = acceptedBoxCompletion(cleanPeople(), cleanProducts());
     return JSON.stringify({
       people: state.people.map((person) => ({
+        id: person.id,
         name: person.name,
         rate: person.rate,
         hours: person.hours,
@@ -1195,14 +1422,57 @@
         keeper: person.keeper
       })),
       products: state.products.map((product) => ({
+        id: product.id,
         name: product.name,
         pieces: product.pieces
       })),
       settings: {
-        maxRows: state.settings.maxRows,
-        minRecordHours: state.settings.minRecordHours
+        minRecordHours: state.settings.minRecordHours,
+        completion: completion ? {
+          pieces: completion.pieces,
+          productId: completion.productId,
+          receiverId: completion.receiverId
+        } : null
       }
     });
+  }
+
+  function hasCurrentCalculation() {
+    const saved = state.calculation;
+    if (!saved || saved.version !== 1 || saved.signature !== getCalculationSignature()) return false;
+    const plan = saved.plan;
+    if (!plan || !Number.isInteger(plan.variant) || plan.variant < 1 || plan.variant > CALC_VARIANT_COUNT) return false;
+    if (!Array.isArray(plan.warnings) || !plan.warnings.every((warning) => typeof warning === "string")) return false;
+    if (!Array.isArray(plan.assignments)) return false;
+    return plan.assignments.every((assignment) => {
+      if (!assignment || !assignment.person || typeof assignment.person.name !== "string") return false;
+      if (![assignment.assigned, assignment.target, assignment.person.hours, assignment.person.rate, assignment.person.capacity]
+        .every((value) => Number.isFinite(value) && value >= 0)) return false;
+      return Array.isArray(assignment.lines) && assignment.lines.every((line) =>
+        line && typeof line.product === "string" && Number.isInteger(line.pieces) && line.pieces >= 0
+      ) && Array.isArray(assignment.lineHours) && assignment.lineHours.length === assignment.lines.length &&
+        assignment.lineHours.every((hours) => Number.isFinite(hours) && hours >= 0);
+    });
+  }
+
+  function storeCalculation(plan) {
+    // Keep the chosen allocation and its hours, not just inputs for a future recalculation.
+    const snapshot = JSON.parse(JSON.stringify(plan));
+    snapshot.assignments.forEach((assignment) => {
+      assignment.lineHours = allocateLineHours(assignment);
+    });
+    state.calculation = { version: 1, signature: getCalculationSignature(), plan: snapshot };
+    restoreCalculation();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  function restoreCalculation() {
+    if (!hasCurrentCalculation()) return false;
+    lastCalculationSignature = state.calculation.signature;
+    calculationVariant = state.calculation.plan.variant - 1;
+    renderResults(state.calculation.plan);
+    setCalculateVariantHint(state.calculation.plan.assignments.length > 0);
+    return true;
   }
 
   function calculatePlan(variant = 0) {
@@ -1216,11 +1486,12 @@
     if (!people.length) warnings.push("Chybí parta s vyplněnými hodinami a výkonem.");
     if (!products.length) warnings.push("Chybí výroba s počtem kusů.");
     if (!totalCapacity) warnings.push("Cíl party je nula.");
-    if (warnings.length) return { people, products, totalPieces, totalCapacity, warnings, assignments: [] };
+    if (warnings.length) return { people, products, totalPieces, totalCapacity, warnings, assignments: [], variant: variantIndex + 1 };
 
     const keepers = people.filter((person) => person.keeper);
     const fallbackKeepers = keepers.length ? keepers : [people[0]];
-    const targets = calculateTargets(people, totalPieces, warnings);
+    const completion = acceptedBoxCompletion(people, products);
+    const targets = calculateTargets(people, totalPieces - (completion ? completion.pieces : 0), warnings);
     const assignments = people.map((person) => ({
       person,
       lines: [],
@@ -1229,7 +1500,10 @@
     }));
 
     const inventory = orderProductsForVariant(products, variantIndex)
-      .map((product) => ({ ...product, remaining: product.pieces }));
+      .map((product) => ({
+        ...product,
+        remaining: product.pieces - (completion && product.id === completion.productId ? completion.pieces : 0)
+      }));
 
     applyFixedProducts(assignments, inventory, warnings);
 
@@ -1244,7 +1518,7 @@
     );
 
     regularAssignments.forEach((assignment) => {
-      fillPractical(assignment, inventory, state.settings.maxRows, minPiecesFor(assignment.person), variantIndex);
+      fillPractical(assignment, inventory, PREFERRED_PRODUCT_ROWS, minPiecesFor(assignment.person), variantIndex);
     });
 
     keeperAssignments.forEach((assignment) => {
@@ -1260,6 +1534,12 @@
     applyAlternativeVariant(assignments, variantIndex);
     cleanupAssignmentLines(assignments);
 
+    if (completion) {
+      const receiver = assignments.find((assignment) => assignment.person.id === completion.receiverId);
+      addLine(receiver, { name: completion.product.name, remaining: completion.pieces }, completion.pieces);
+      warnings.push(`Dokončení bedny ${completion.product.name}: ${completion.receiver.name} má +${completion.pieces} ks nad původní cíl.`);
+    }
+
     assignments.forEach((assignment) => {
       assignment.lines.sort((a, b) => b.pieces - a.pieces || a.product.localeCompare(b.product, "cs"));
     });
@@ -1274,7 +1554,8 @@
       if (assignment.assigned > assignment.person.capacity) {
         warnings.push(`${assignment.person.name} je nad normu: ${assignment.assigned} ks / kapacita ${assignment.person.capacity} ks.`);
       }
-      if (isFixedAssignment(assignment) && assignment.assigned !== assignment.target) {
+      const completionExtra = completion && assignment.person.id === completion.receiverId ? completion.pieces : 0;
+      if (isFixedAssignment(assignment) && assignment.assigned !== assignment.target + completionExtra) {
         warnings.push(`${assignment.person.name} má pevně ${assignment.target} ks, ale vyšlo ${assignment.assigned} ks.`);
       }
       const small = assignment.lines.filter((line) => line.pieces > 0 && line.pieces < minPieces);
@@ -1288,6 +1569,8 @@
 
   function saveDailyRecord() {
     if (!confirm("Opravdu chcete uložit tento výkon?")) return;
+    if (!hasCurrentCalculation()) storeCalculation(calculatePlan(0));
+    const plan = state.calculation.plan;
     const records = loadRecords();
     const now = new Date();
     const products = cleanProducts();
@@ -1297,11 +1580,15 @@
       id: uid(),
       savedAt: now.toISOString(),
       title: formatRecordTitle(now),
-      summary: `${totalPieces} ks | ${people.length} členů party`,
+      summary: `${totalPieces} ks | ${people.length} členů party | ${plan.assignments.length ? getVariantLabel(plan.variant) : "bez výsledku"}`,
       state: cloneCurrentState()
     });
-    localStorage.setItem(RECORDS_KEY, JSON.stringify(records.slice(0, 80)));
-    renderWarnings([`Uloženo: ${formatRecordTitle(now)}.`]);
+    try {
+      localStorage.setItem(RECORDS_KEY, JSON.stringify(records.slice(0, 80)));
+      renderWarnings([...plan.warnings, `Uloženo: ${formatRecordTitle(now)}${plan.assignments.length ? `, varianta ${plan.variant}` : ", pouze zadání bez výsledku"}.`]);
+    } catch {
+      renderWarnings([...plan.warnings, "Záznam se nepodařilo uložit. Úložiště může být plné."]);
+    }
   }
 
   function openRecordLoader() {
@@ -1447,14 +1734,15 @@
   }
 
   function loadDailyRecord(record) {
-    state.people = (record.state && record.state.people) ? record.state.people : [];
-    state.products = (record.state && record.state.products) ? record.state.products : [];
-    const recordSettings = (record.state && record.state.settings) ? record.state.settings : {};
+    const savedState = JSON.parse(JSON.stringify(record.state || {}));
+    state.people = savedState.people || [];
+    state.products = savedState.products || [];
+    state.calculation = savedState.calculation;
+    const recordSettings = savedState.settings || {};
     const recordColor = "productionColor" in recordSettings
       ? recordSettings.productionColor
       : inferProductionColor(record.state && record.state.products);
     state.settings = {
-      ...state.settings,
       ...recordSettings,
       productionColor: recordColor || ""
     };
@@ -1462,7 +1750,15 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     closeRecordLoader();
     render();
-    renderWarnings([`Načteno: ${record.title || "uložený záznam"}.`]);
+    const restored = restoreCalculation();
+    if (!restored) storeCalculation(calculatePlan(0));
+    const plan = state.calculation.plan;
+    const message = restored
+      ? `Načteno: ${record.title || "uložený záznam"}${plan.assignments.length ? `, uložená varianta ${plan.variant}` : ""}.`
+      : plan.assignments.length
+        ? "Záznam neobsahuje platnou uloženou variantu. Nově spočítána varianta 1."
+        : "Načtené zadání nelze spočítat. Zkontroluj údaje nahoře.";
+    renderWarnings([...plan.warnings, message]);
   }
 
   function deleteDailyRecord(recordId) {
@@ -1476,7 +1772,8 @@
     return JSON.parse(JSON.stringify({
       people: state.people,
       products: state.products,
-      settings: state.settings
+      settings: state.settings,
+      calculation: state.calculation
     }));
   }
 
@@ -1855,7 +2152,7 @@
     let overRowLimit = 0;
     assignments.forEach((assignment) => {
       const minPieces = minPiecesFor(assignment.person);
-      const rowLimit = isFixedAssignment(assignment) ? 2 : state.settings.maxRows;
+      const rowLimit = PREFERRED_PRODUCT_ROWS;
       tinyLines += assignment.lines.filter((line) => line.pieces > 0 && line.pieces < minPieces).length;
       overRowLimit += Math.max(0, assignment.lines.length - rowLimit);
     });
@@ -1955,7 +2252,7 @@
   function linePenalty(assignment) {
     const minPieces = minPiecesFor(assignment.person);
     const tinyPenalty = assignment.lines.filter((line) => line.pieces > 0 && line.pieces < minPieces).length * 5;
-    const rowLimit = isFixedAssignment(assignment) ? 2 : state.settings.maxRows;
+    const rowLimit = PREFERRED_PRODUCT_ROWS;
     return tinyPenalty + Math.max(0, assignment.lines.length - rowLimit);
   }
 
@@ -2091,7 +2388,7 @@
         empty.textContent = "Bez přiděleného řádku.";
         lines.append(empty);
       } else {
-        const lineHours = allocateLineHours(assignment);
+        const lineHours = assignment.lineHours;
         assignment.lines.forEach((line, index) => {
           const row = document.createElement("div");
           row.className = "assignment-line";
@@ -2128,6 +2425,15 @@
   }
 
   function saveAndUpdateSummary() {
+    if (state.calculation && !hasCurrentCalculation()) {
+      delete state.calculation;
+      lastCalculationSignature = "";
+      calculationVariant = 0;
+      setCalculateVariantHint(false);
+      els.results.className = "results-empty";
+      els.results.textContent = "Zadání se změnilo. Výsledek je potřeba znovu spočítat.";
+      renderWarnings([]);
+    }
     const people = cleanPeople();
     const products = cleanProducts();
     const totalPieces = sum(products, "pieces");
@@ -2161,6 +2467,7 @@
         name: product.name.trim() || `Výroba ${index + 1}`,
         noteType: product.noteType || "",
         notePieces: Math.round(numberOrZero(product.notePieces)),
+        unfinishedPieces: Math.round(numberOrZero(product.unfinishedPieces)),
         note: product.note || "",
         pieces: Math.round(numberOrZero(product.pieces))
       }))

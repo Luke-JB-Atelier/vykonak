@@ -95,7 +95,7 @@
             <div>
               <p class="section-step">Krok 2</p>
               <h2>Naplánovat výrobu při začátku směny</h2>
-              <p>Vyber dnešní výrobky a zapiš celé bedny i rozpracované zbytky z předchozí směny.</p>
+              <p>Stav po předchozí směně: celé bedny a kusy v rozdělané bedně.</p>
             </div>
           </div>
           <div class="planner-summary" aria-live="polite">
@@ -108,6 +108,18 @@
               <strong id="plannerTarget">0 ks</strong>
             </div>
           </div>
+          <label class="record-interval planner-overrun">
+            <span>Překročení pro dokončení bedny</span>
+            <select id="boxCompletionLimit">
+              <option value="0">Vypnuto</option>
+              <option value="5">5 kusů</option>
+              <option value="10" selected>10 kusů</option>
+              <option value="15">15 kusů</option>
+              <option value="20">20 kusů</option>
+              <option value="25">25 kusů</option>
+              <option value="30">30 kusů</option>
+            </select>
+          </label>
           <div class="planner-content">
             <div class="planner-box-size">
               <span>Bedna má</span>
@@ -124,8 +136,9 @@
                 <span data-plan-boxes>0 beden</span>
                 <button type="button" data-plan-step="1">+</button>
                 <label>
-                  <span>Zbytek</span>
+                  <span>V bedně po předchozí směně (ks)</span>
                   <input data-plan-remainder type="number" inputmode="numeric" min="0" step="1" value="0">
+                  <small data-plan-to-finish></small>
                 </label>
               </div>
               <div class="planner-row" data-plan-product="C">
@@ -137,8 +150,9 @@
                 <span data-plan-boxes>0 beden</span>
                 <button type="button" data-plan-step="1">+</button>
                 <label>
-                  <span>Zbytek</span>
+                  <span>V bedně po předchozí směně (ks)</span>
                   <input data-plan-remainder type="number" inputmode="numeric" min="0" step="1" value="0">
+                  <small data-plan-to-finish></small>
                 </label>
               </div>
               <div class="planner-row" data-plan-product="R">
@@ -150,12 +164,20 @@
                 <span data-plan-boxes>0 beden</span>
                 <button type="button" data-plan-step="1">+</button>
                 <label>
-                  <span>Zbytek</span>
+                  <span>V bedně po předchozí směně (ks)</span>
                   <input data-plan-remainder type="number" inputmode="numeric" min="0" step="1" value="0">
+                  <small data-plan-to-finish></small>
                 </label>
               </div>
             </div>
             <div class="planner-preview" id="plannerPreview"></div>
+            <div class="planner-completion" id="plannerCompletion" role="status" hidden>
+              <div>
+                <strong id="plannerCompletionTitle"></strong>
+                <p id="plannerCompletionDetail"></p>
+              </div>
+              <button class="text-button" id="completePlannerBox" type="button">Dokončit bednu</button>
+            </div>
             <div class="planner-actions">
               <button class="primary-button planner-variant-button" id="nextProductionPlanVariant" type="button">
                 <span>Varianty</span>
@@ -194,18 +216,29 @@
               <label class="color-picker" aria-label="Barva výroby">
                 <span>Barva</span>
                 <select id="productionColor">
-                  <option value="">Barva: obecná</option>
+                  <option value="blue" selected>Barva: modrá</option>
                   <option value="green-ul">Barva: UL zelená</option>
                   <option value="honey">Barva: UL zlatá</option>
                   <option value="bordeaux">Barva: UL bordó</option>
-                  <option value="blue">Barva: modrá</option>
                   <option value="yellow">Barva: žlutá</option>
                   <option value="orange">Barva: oranžová</option>
                   <option value="pink">Barva: růžová</option>
                 </select>
               </label>
               <button class="icon-action calc-action" id="standaloneCalc" type="button" aria-label="Otevřít kalkulačku">
-                <span class="calc-glyph" aria-hidden="true"></span>
+                <!-- Lucide Calculator, ISC license in lucide-LICENSE.txt. -->
+                <svg class="toolbar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                  <rect width="16" height="20" x="4" y="2" rx="2" />
+                  <line x1="8" x2="16" y1="6" y2="6" />
+                  <line x1="16" x2="16" y1="14" y2="18" />
+                  <path d="M16 10h.01" />
+                  <path d="M12 10h.01" />
+                  <path d="M8 10h.01" />
+                  <path d="M12 14h.01" />
+                  <path d="M8 14h.01" />
+                  <path d="M12 18h.01" />
+                  <path d="M8 18h.01" />
+                </svg>
                 <span>Kalkulačka</span>
               </button>
               <div class="add-product-wrap">
@@ -225,33 +258,6 @@
           <div class="rows" id="productRows"></div>
         </section>
 
-        <section class="panel">
-          <div class="section-head">
-            <div>
-              <h2>Nastavení</h2>
-              <p>Pro první verzi je hlavní minimalizovat vypisování bez ztráty kusů.</p>
-            </div>
-          </div>
-          <div class="settings-grid">
-            <label>
-              <span>Max. řádků bez zbytků</span>
-              <select id="maxRows">
-                <option value="1">1 řádek</option>
-                <option value="2" selected>2 řádky</option>
-                <option value="3">3 řádky</option>
-              </select>
-            </label>
-            <label>
-              <span>Nejmenší rozumný zápis</span>
-              <select id="minRecordHours">
-                <option value="0.25">0,25 hodiny</option>
-                <option value="0.5" selected>0,5 hodiny</option>
-                <option value="1">1 hodina</option>
-              </select>
-            </label>
-          </div>
-        </section>
-
         <section class="panel results-panel">
           <div class="section-head">
             <div>
@@ -259,6 +265,16 @@
               <h2>Výsledek</h2>
               <p>Řádky jsou navržené tak, aby součet přesně seděl na zadanou výrobu.</p>
             </div>
+          </div>
+          <div class="result-toolbar">
+            <label class="record-interval">
+              <span>Nejmenší rozumný zápis</span>
+              <select id="minRecordHours">
+                <option value="0.25">0,25 hodiny</option>
+                <option value="0.5" selected>0,5 hodiny</option>
+                <option value="1">1 hodina</option>
+              </select>
+            </label>
             <div class="result-actions">
               <button class="primary-button calculate-button" id="calculate" type="button">
                 <span>Spočítat</span>
@@ -362,10 +378,21 @@
                 <option value="">Celé</option>
                 <option value="doplneno">Doplněno</option>
                 <option value="rozpracovana">Rozprac.</option>
+                <option value="doplneno-rozpracovana">Doplněno i rozpracováno</option>
               </select>
             </span>
           </label>
           <div class="product-breakdown" aria-live="polite"></div>
+        </div>
+        <div class="product-partials" hidden>
+          <label>
+            <span>Doplněno (ks)</span>
+            <input data-field="notePieces" type="number" inputmode="numeric" min="0" step="1" value="0">
+          </label>
+          <label>
+            <span>Rozpracováno (ks)</span>
+            <input data-field="unfinishedPieces" type="number" inputmode="numeric" min="0" step="1" value="0">
+          </label>
         </div>
         <label class="product-note">
           <span>Poznámka</span>
