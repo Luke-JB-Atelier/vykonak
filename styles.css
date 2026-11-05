@@ -547,7 +547,7 @@ select {
 
 .product-panel .section-actions {
   display: grid;
-  grid-template-columns: minmax(96px, 0.65fr) repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(90px, 0.65fr) minmax(132px, 1.1fr) repeat(3, minmax(0, 0.9fr));
   align-items: stretch;
   gap: 8px;
 }
@@ -562,7 +562,7 @@ select {
   box-shadow: none;
 }
 
-.product-panel .section-actions :is(select, .calc-action, .add-action) {
+.product-panel .section-actions :is(select, .calc-action, .counter-action, .add-action) {
   padding: 0 12px;
   background-color: #d7edf4;
   color: #074a62;
@@ -582,7 +582,7 @@ select {
   padding-right: 28px;
 }
 
-.product-panel .section-actions :is(.calc-action, .add-action) {
+.product-panel .section-actions :is(.calc-action, .counter-action, .add-action) {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -590,7 +590,7 @@ select {
   white-space: normal;
 }
 
-.product-panel .section-actions :is(.calc-action, .add-action):hover {
+.product-panel .section-actions :is(.calc-action, .counter-action, .add-action):hover {
   background-color: #c9e7f0;
 }
 
@@ -801,30 +801,312 @@ html {
 
 @media (max-width: 760px) {
   .product-panel .section-actions {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 7px;
   }
 
   .product-panel .inline-total {
-    grid-column: span 1;
+    grid-column: span 2;
     padding-inline: 6px;
     overflow-wrap: anywhere;
   }
 
   .product-panel .color-picker {
-    grid-column: span 3;
+    grid-column: span 4;
   }
 
-  .product-panel .section-actions > :is(.calc-action, .add-product-wrap) {
+  .product-panel .section-actions > :is(.calc-action, .counter-action, .add-product-wrap) {
     grid-column: span 2;
   }
 
-  .product-panel .section-actions :is(.calc-action, .add-action) {
-    padding-inline: 8px;
+  .product-panel .section-actions :is(.calc-action, .counter-action, .add-action) {
+    padding-inline: 5px;
+    font-size: 0.82rem;
   }
 
   html {
     scroll-padding-top: 120px;
+  }
+}
+
+/* Camera piece counter. It intentionally uses no remote service: frames are
+   analysed in a small local canvas and discarded when the panel closes. */
+.counter-sheet[hidden] {
+  display: none;
+}
+
+.counter-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 24;
+  display: grid;
+  align-items: end;
+}
+
+.counter-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(7, 22, 32, 0.68);
+  backdrop-filter: blur(3px);
+}
+
+.counter-panel {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  width: min(620px, calc(100% - 12px));
+  max-height: calc(100dvh - 12px);
+  margin: 0 auto calc(6px + env(safe-area-inset-bottom));
+  padding: 12px;
+  overflow: auto;
+  border: 1px solid #76afc0;
+  border-radius: 13px 13px 8px 8px;
+  background: #e4f3f7;
+  box-shadow: 0 24px 70px rgba(3, 20, 29, 0.42);
+}
+
+.counter-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.counter-head > div {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.counter-head strong {
+  color: var(--strong);
+  font-size: 1.15rem;
+}
+
+.counter-head > div span {
+  color: #477180;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.counter-stage {
+  position: relative;
+  min-height: 260px;
+  overflow: hidden;
+  border: 2px solid #3b7182;
+  border-radius: 10px;
+  background: #102a35;
+}
+
+.counter-stage canvas,
+.counter-stage video {
+  display: block;
+  width: 100%;
+  height: min(56vh, 480px);
+  min-height: 260px;
+  object-fit: contain;
+  background: #102a35;
+}
+
+.counter-stage video[hidden] {
+  display: none;
+}
+
+.counter-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  padding: 24px;
+  color: #dceff5;
+  text-align: center;
+}
+
+.counter-empty[hidden] {
+  display: none;
+}
+
+.counter-empty svg {
+  width: 48px;
+  height: 48px;
+  color: #7fc9dd;
+}
+
+.counter-empty span {
+  color: #a9c6d0;
+  font-size: 0.85rem;
+}
+
+.counter-live-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(151, 24, 35, 0.92);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.counter-live-badge[hidden] {
+  display: none;
+}
+
+.counter-count {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 96px;
+  padding: 7px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  border-radius: 9px;
+  background: rgba(5, 39, 52, 0.88);
+  color: #ffffff;
+  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.25);
+}
+
+.counter-count strong {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.counter-count span {
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.counter-status,
+.counter-privacy {
+  margin: 0;
+  color: #315866;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.counter-primary-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 8px;
+}
+
+.counter-primary-actions > * {
+  min-width: 0;
+  min-height: 46px;
+}
+
+.counter-primary-actions .primary-button {
+  grid-row: span 2;
+}
+
+.counter-file-button,
+.counter-primary-actions .text-button {
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 7px 10px;
+  border: 1px solid #8eb9c7;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #075678;
+  font-size: 0.82rem;
+  font-weight: 900;
+  text-align: center;
+  cursor: pointer;
+}
+
+.counter-settings {
+  border: 1px solid #b8d4dc;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.counter-settings summary {
+  padding: 9px 11px;
+  color: #174f62;
+  font-size: 0.83rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.counter-settings label {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 5px 10px;
+  padding: 4px 11px 10px;
+  color: #315866;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.counter-settings input[type="range"] {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: 26px;
+  accent-color: #0f7896;
+}
+
+.counter-correction {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #315866;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.counter-correction > div {
+  display: grid;
+  grid-template-columns: 44px minmax(74px, auto) 44px;
+  align-items: center;
+  gap: 6px;
+}
+
+.counter-correction button {
+  width: 44px;
+  min-height: 44px;
+  border: 1px solid #96bdc9;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #075678;
+  font-size: 1.35rem;
+  font-weight: 900;
+}
+
+.counter-correction strong {
+  color: var(--strong);
+  text-align: center;
+}
+
+@media (max-width: 480px) {
+  .counter-panel {
+    gap: 8px;
+    padding: 9px;
+  }
+
+  .counter-stage,
+  .counter-stage canvas,
+  .counter-stage video {
+    min-height: 230px;
+  }
+
+  .counter-stage canvas,
+  .counter-stage video {
+    height: min(48vh, 390px);
+  }
+
+  .counter-primary-actions {
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
   }
 }
 

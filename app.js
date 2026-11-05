@@ -143,6 +143,27 @@
     calcClose: document.querySelector("#calcClose"),
     calcVibration: document.querySelector("#calcVibration"),
     standaloneCalc: document.querySelector("#standaloneCalc"),
+    openPieceCounter: document.querySelector("#openPieceCounter"),
+    counterSheet: document.querySelector("#counterSheet"),
+    counterClose: document.querySelector("#counterClose"),
+    counterVideo: document.querySelector("#counterVideo"),
+    counterCanvas: document.querySelector("#counterCanvas"),
+    counterEmpty: document.querySelector("#counterEmpty"),
+    counterEmptyTitle: document.querySelector("#counterEmptyTitle"),
+    counterEmptyText: document.querySelector("#counterEmptyText"),
+    counterLiveBadge: document.querySelector("#counterLiveBadge"),
+    counterCount: document.querySelector("#counterCount"),
+    counterCorrectedCount: document.querySelector("#counterCorrectedCount"),
+    counterStatus: document.querySelector("#counterStatus"),
+    counterCapture: document.querySelector("#counterCapture"),
+    counterRestart: document.querySelector("#counterRestart"),
+    counterFile: document.querySelector("#counterFile"),
+    counterSensitivity: document.querySelector("#counterSensitivity"),
+    counterSensitivityValue: document.querySelector("#counterSensitivityValue"),
+    counterSize: document.querySelector("#counterSize"),
+    counterSizeValue: document.querySelector("#counterSizeValue"),
+    counterMinus: document.querySelector("#counterMinus"),
+    counterPlus: document.querySelector("#counterPlus"),
     calculate: document.querySelector("#calculate"),
     calculateBottom: document.querySelector("#calculateBottom"),
     saveRecord: document.querySelector("#saveRecord"),
@@ -166,6 +187,14 @@
   let latestProductionPlan = [];
   let plannerCompletionOffer = null;
   let completedProductionPlan = null;
+  let counterStream = null;
+  let counterAnimationFrame = 0;
+  let counterLastFrameAt = 0;
+  let counterStillSource = null;
+  let counterBaseCount = 0;
+  let counterManualCorrection = 0;
+  let counterCountHistory = [];
+  const counterWorkCanvas = document.createElement("canvas");
 
   document.querySelector("#addPerson").addEventListener("click", () => {
     state.people.push({
@@ -358,6 +387,16 @@
     }
   });
   els.standaloneCalc.addEventListener("click", openStandaloneCalculator);
+  els.openPieceCounter.addEventListener("click", openPieceCounter);
+  els.counterClose.addEventListener("click", closePieceCounter);
+  els.counterSheet.querySelector("[data-counter-close]").addEventListener("click", closePieceCounter);
+  els.counterCapture.addEventListener("click", captureCounterFrame);
+  els.counterRestart.addEventListener("click", startCounterCamera);
+  els.counterFile.addEventListener("change", handleCounterFile);
+  els.counterSensitivity.addEventListener("input", handleCounterSettingsChange);
+  els.counterSize.addEventListener("input", handleCounterSettingsChange);
+  els.counterMinus.addEventListener("click", () => adjustCounter(-1));
+  els.counterPlus.addEventListener("click", () => adjustCounter(1));
   els.saveRecord.addEventListener("click", saveDailyRecord);
   els.loadRecord.addEventListener("click", openRecordLoader);
   els.recordClose.addEventListener("click", closeRecordLoader);
@@ -403,6 +442,415 @@
 
   render();
   restoreCalculation();
+
+  async function openPieceCounter() {
+    counterBaseCount = 0;
+    counterManualCorrection = 0;
+    counterCountHistory = [];
+    counterStillSource = null;
+    updateCounterSettingsLabels();
+    updateCounterCount();
+    els.counterSheet.hidden = false;
+    document.body.style.overflow = "hidden";
+    await startCounterCamera();
+  }
+
+  function closePieceCounter() {
+    stopCounterCamera();
+    releaseCounterStillSource();
+    els.counterSheet.hidden = true;
+    els.counterFile.value = "";
+    document.body.style.overflow = "";
+  }
+
+  async function startCounterCamera() {
+    stopCounterCamera();
+    releaseCounterStillSource();
+    counterCountHistory = [];
+    counterManualCorrection = 0;
+    counterBaseCount = 0;
+    updateCounterCount();
+    setCounterEmpty("Spouštím fotoaparát…", "Povol přístup ke kameře.");
+    els.counterCapture.hidden = false;
+    els.counterCapture.disabled = true;
+    els.counterRestart.hidden = true;
+    els.counterLiveBadge.hidden = true;
+    els.counterStatus.textContent = "Rozprostři rotorky tak, aby se vzájemně nedotýkaly.";
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setCounterCameraUnavailable();
+      return;
+    }
+
+    try {
+      counterStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        },
+        audio: false
+      });
+      els.counterVideo.srcObject = counterStream;
+      await els.counterVideo.play();
+      els.counterEmpty.hidden = true;
+      els.counterLiveBadge.hidden = false;
+      els.counterCapture.disabled = false;
+      counterLastFrameAt = 0;
+      counterAnimationFrame = requestAnimationFrame(counterLiveLoop);
+    } catch (error) {
+      setCounterCameraUnavailable(error && error.name === "NotAllowedError");
+    }
+  }
+
+  function setCounterCameraUnavailable(permissionDenied = false) {
+    stopCounterCamera();
+    setCounterEmpty(
+      permissionDenied ? "Fotoaparát nebyl povolen" : "Kameru tady nejde otevřít",
+      "Použij tlačítko Vybrat fotku. Na mobilu nabídne také vyfocení."
+    );
+    els.counterStatus.textContent = permissionDenied
+      ? "Přístup ke kameře můžeš povolit v nastavení prohlížeče."
+      : "Vložené okno může kameru blokovat, fotografie ale funguje stejně.";
+    els.counterCapture.disabled = true;
+    els.counterRestart.hidden = false;
+  }
+
+  function setCounterEmpty(title, text) {
+    els.counterEmptyTitle.textContent = title;
+    els.counterEmptyText.textContent = text;
+    els.counterEmpty.hidden = false;
+    const context = els.counterCanvas.getContext("2d");
+    els.counterCanvas.width = 1;
+    els.counterCanvas.height = 1;
+    context.clearRect(0, 0, 1, 1);
+  }
+
+  function stopCounterCamera() {
+    if (counterAnimationFrame) cancelAnimationFrame(counterAnimationFrame);
+    counterAnimationFrame = 0;
+    if (counterStream) {
+      counterStream.getTracks().forEach((track) => track.stop());
+      counterStream = null;
+    }
+    els.counterVideo.pause();
+    els.counterVideo.srcObject = null;
+    els.counterLiveBadge.hidden = true;
+  }
+
+  function counterLiveLoop(time) {
+    if (!counterStream || els.counterSheet.hidden) return;
+    if (time - counterLastFrameAt > 260 && els.counterVideo.readyState >= 2) {
+      counterLastFrameAt = time;
+      analyseCounterSource(els.counterVideo, true);
+    }
+    counterAnimationFrame = requestAnimationFrame(counterLiveLoop);
+  }
+
+  function captureCounterFrame() {
+    if (!counterStream || els.counterVideo.readyState < 2) return;
+    const snapshot = document.createElement("canvas");
+    snapshot.width = els.counterVideo.videoWidth;
+    snapshot.height = els.counterVideo.videoHeight;
+    snapshot.getContext("2d").drawImage(els.counterVideo, 0, 0);
+    stopCounterCamera();
+    releaseCounterStillSource();
+    counterStillSource = snapshot;
+    counterManualCorrection = 0;
+    counterCountHistory = [];
+    els.counterCapture.hidden = true;
+    els.counterRestart.hidden = false;
+    els.counterEmpty.hidden = true;
+    els.counterStatus.textContent = "Zkontroluj zelené značky. Počet můžeš opravit tlačítky − a +.";
+    analyseCounterSource(counterStillSource, false);
+  }
+
+  async function handleCounterFile(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    event.target.value = "";
+    stopCounterCamera();
+    releaseCounterStillSource();
+    counterManualCorrection = 0;
+    counterCountHistory = [];
+    setCounterEmpty("Načítám fotografii…", file.name);
+    try {
+      counterStillSource = await decodeCounterFile(file);
+      els.counterEmpty.hidden = true;
+      els.counterCapture.hidden = true;
+      els.counterRestart.hidden = false;
+      els.counterStatus.textContent = "Zkontroluj zelené značky. Počet můžeš opravit tlačítky − a +.";
+      analyseCounterSource(counterStillSource, false);
+    } catch (error) {
+      setCounterEmpty("Fotku se nepodařilo načíst", "Zkus ji vyfotit znovu.");
+    }
+  }
+
+  async function decodeCounterFile(file) {
+    if (!("createImageBitmap" in window)) return loadCounterImage(file);
+    try {
+      return await createImageBitmap(file, { imageOrientation: "from-image" });
+    } catch (error) {
+      try {
+        return await createImageBitmap(file);
+      } catch (fallbackError) {
+        return loadCounterImage(file);
+      }
+    }
+  }
+
+  function loadCounterImage(file) {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      const url = URL.createObjectURL(file);
+      image.onload = () => {
+        URL.revokeObjectURL(url);
+        resolve(image);
+      };
+      image.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("image-load-failed"));
+      };
+      image.src = url;
+    });
+  }
+
+  function releaseCounterStillSource() {
+    if (counterStillSource && typeof counterStillSource.close === "function") {
+      counterStillSource.close();
+    }
+    counterStillSource = null;
+  }
+
+  function handleCounterSettingsChange() {
+    updateCounterSettingsLabels();
+    counterCountHistory = [];
+    counterManualCorrection = 0;
+    if (counterStillSource) analyseCounterSource(counterStillSource, false);
+  }
+
+  function updateCounterSettingsLabels() {
+    els.counterSensitivityValue.textContent = els.counterSensitivity.value;
+    els.counterSizeValue.textContent = els.counterSize.value;
+  }
+
+  function adjustCounter(delta) {
+    counterManualCorrection = Math.max(-counterBaseCount, counterManualCorrection + delta);
+    updateCounterCount();
+  }
+
+  function updateCounterCount() {
+    const count = Math.max(0, counterBaseCount + counterManualCorrection);
+    els.counterCount.textContent = String(count);
+    els.counterCorrectedCount.textContent = `${count} ks`;
+  }
+
+  function analyseCounterSource(source, live) {
+    const sourceWidth = source.videoWidth || source.naturalWidth || source.width;
+    const sourceHeight = source.videoHeight || source.naturalHeight || source.height;
+    if (!sourceWidth || !sourceHeight) return;
+
+    const outputScale = Math.min(1, 960 / Math.max(sourceWidth, sourceHeight));
+    const outputWidth = Math.max(1, Math.round(sourceWidth * outputScale));
+    const outputHeight = Math.max(1, Math.round(sourceHeight * outputScale));
+    const output = els.counterCanvas;
+    if (output.width !== outputWidth || output.height !== outputHeight) {
+      output.width = outputWidth;
+      output.height = outputHeight;
+    }
+    const outputContext = output.getContext("2d", { alpha: false });
+    outputContext.drawImage(source, 0, 0, outputWidth, outputHeight);
+
+    const analysisScale = Math.min(1, 420 / Math.max(sourceWidth, sourceHeight));
+    const analysisWidth = Math.max(1, Math.round(sourceWidth * analysisScale));
+    const analysisHeight = Math.max(1, Math.round(sourceHeight * analysisScale));
+    counterWorkCanvas.width = analysisWidth;
+    counterWorkCanvas.height = analysisHeight;
+    const workContext = counterWorkCanvas.getContext("2d", { willReadFrequently: true });
+    workContext.drawImage(source, 0, 0, analysisWidth, analysisHeight);
+    const pixels = workContext.getImageData(0, 0, analysisWidth, analysisHeight).data;
+    const components = findCounterComponents(
+      pixels,
+      analysisWidth,
+      analysisHeight,
+      Number(els.counterSensitivity.value),
+      Number(els.counterSize.value)
+    );
+
+    drawCounterComponents(outputContext, components, outputWidth / analysisWidth, outputHeight / analysisHeight);
+    const detectedCount = components.length;
+    if (live) {
+      counterCountHistory.push(detectedCount);
+      if (counterCountHistory.length > 5) counterCountHistory.shift();
+      const sorted = [...counterCountHistory].sort((a, b) => a - b);
+      counterBaseCount = sorted[Math.floor(sorted.length / 2)] || 0;
+    } else {
+      counterBaseCount = detectedCount;
+      const componentAreas = components.map((component) => component.area).sort((a, b) => a - b);
+      const middleArea = componentAreas[Math.floor(componentAreas.length / 2)] || 0;
+      const likelyTouching = middleArea > 0 && componentAreas.some((area) => area > middleArea * 3.2);
+      els.counterStatus.textContent = likelyTouching
+        ? "Některé kusy se zřejmě dotýkají. Rozlož je dál od sebe a vyfoť znovu."
+        : "Zkontroluj zelené značky. Počet můžeš opravit tlačítky − a +.";
+    }
+    updateCounterCount();
+  }
+
+  function findCounterComponents(pixels, width, height, sensitivity, sizeSetting) {
+    const total = width * height;
+    // The plastic is neutral to slightly green. Warm wood remains outside the
+    // mask even in shadow, where a simple brightness threshold would fail.
+    const minimumLight = 120 - sensitivity * 0.9;
+    const maximumRedExcess = -2 + sensitivity * 0.16;
+    const maximumGreenBlueGap = 16 + sensitivity * 0.32;
+    const mask = new Uint8Array(total);
+
+    for (let index = 0, pixel = 0; index < total; index += 1, pixel += 4) {
+      const red = pixels[pixel];
+      const green = pixels[pixel + 1];
+      const blue = pixels[pixel + 2];
+      const light = red * 0.299 + green * 0.587 + blue * 0.114;
+      const redExcess = red - green;
+      const greenBlueGap = green - blue;
+      if (
+        light >= minimumLight &&
+        redExcess <= maximumRedExcess &&
+        greenBlueGap <= maximumGreenBlueGap
+      ) {
+        mask[index] = 1;
+      }
+    }
+
+    const visited = new Uint8Array(total);
+    const stack = new Int32Array(total);
+    const minimumArea = Math.max(8, Math.round(total * (0.00005 + sizeSetting * 0.0000082)));
+    const maximumArea = total * 0.16;
+    const components = [];
+
+    for (let start = 0; start < total; start += 1) {
+      if (!mask[start] || visited[start]) continue;
+      let stackSize = 1;
+      let area = 0;
+      let minimumX = width;
+      let minimumY = height;
+      let maximumX = 0;
+      let maximumY = 0;
+      stack[0] = start;
+      visited[start] = 1;
+
+      while (stackSize) {
+        const current = stack[--stackSize];
+        const x = current % width;
+        const y = (current / width) | 0;
+        area += 1;
+        if (x < minimumX) minimumX = x;
+        if (x > maximumX) maximumX = x;
+        if (y < minimumY) minimumY = y;
+        if (y > maximumY) maximumY = y;
+
+        const left = current - 1;
+        const right = current + 1;
+        const up = current - width;
+        const down = current + width;
+        if (x > 0 && mask[left] && !visited[left]) {
+          visited[left] = 1;
+          stack[stackSize++] = left;
+        }
+        if (x + 1 < width && mask[right] && !visited[right]) {
+          visited[right] = 1;
+          stack[stackSize++] = right;
+        }
+        if (y > 0 && mask[up] && !visited[up]) {
+          visited[up] = 1;
+          stack[stackSize++] = up;
+        }
+        if (y + 1 < height && mask[down] && !visited[down]) {
+          visited[down] = 1;
+          stack[stackSize++] = down;
+        }
+      }
+
+      const boxWidth = maximumX - minimumX + 1;
+      const boxHeight = maximumY - minimumY + 1;
+      const aspect = boxWidth / boxHeight;
+      const fill = area / (boxWidth * boxHeight);
+      const touchesTwoEdges =
+        (minimumX === 0 || maximumX === width - 1) &&
+        (minimumY === 0 || maximumY === height - 1);
+      if (
+        area >= minimumArea &&
+        area <= maximumArea &&
+        boxWidth >= 5 &&
+        boxHeight >= 5 &&
+        aspect >= 0.32 &&
+        aspect <= 3.1 &&
+        fill >= 0.13 &&
+        !touchesTwoEdges
+      ) {
+        components.push({ x: minimumX, y: minimumY, width: boxWidth, height: boxHeight, area });
+      }
+    }
+
+    return mergeCounterFragments(components);
+  }
+
+  function mergeCounterFragments(components) {
+    const merged = components.map((component) => ({ ...component }));
+    for (let first = 0; first < merged.length; first += 1) {
+      const a = merged[first];
+      if (!a) continue;
+      for (let second = first + 1; second < merged.length; second += 1) {
+        const b = merged[second];
+        if (!b) continue;
+        const aCenterX = a.x + a.width / 2;
+        const aCenterY = a.y + a.height / 2;
+        const bCenterX = b.x + b.width / 2;
+        const bCenterY = b.y + b.height / 2;
+        const distance = Math.hypot(aCenterX - bCenterX, aCenterY - bCenterY);
+        const fragmentDistance = Math.max(Math.min(a.width, a.height), Math.min(b.width, b.height)) * 0.5;
+        const strongSizeDifference = Math.max(a.area, b.area) > Math.min(a.area, b.area) * 2.8;
+        if (distance > fragmentDistance || !strongSizeDifference) continue;
+        const left = Math.min(a.x, b.x);
+        const top = Math.min(a.y, b.y);
+        const right = Math.max(a.x + a.width, b.x + b.width);
+        const bottom = Math.max(a.y + a.height, b.y + b.height);
+        a.x = left;
+        a.y = top;
+        a.width = right - left;
+        a.height = bottom - top;
+        a.area += b.area;
+        merged[second] = null;
+      }
+    }
+    return merged.filter(Boolean);
+  }
+
+  function drawCounterComponents(context, components, scaleX, scaleY) {
+    context.save();
+    context.strokeStyle = "#48f29a";
+    context.fillStyle = "rgba(4, 41, 53, 0.88)";
+    context.lineWidth = Math.max(2, Math.min(4, scaleX * 1.5));
+    context.font = `800 ${Math.max(13, Math.round(11 * scaleX))}px system-ui, sans-serif`;
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    components.forEach((component, index) => {
+      const centerX = (component.x + component.width / 2) * scaleX;
+      const centerY = (component.y + component.height / 2) * scaleY;
+      const radiusX = component.width * scaleX * 0.58 + 4;
+      const radiusY = component.height * scaleY * 0.58 + 4;
+      context.beginPath();
+      context.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2);
+      context.stroke();
+      const labelRadius = Math.max(10, Math.min(16, radiusX * 0.28));
+      context.beginPath();
+      context.arc(centerX, centerY, labelRadius, 0, Math.PI * 2);
+      context.fill();
+      context.fillStyle = "#ffffff";
+      context.fillText(String(index + 1), centerX, centerY + 0.5);
+      context.fillStyle = "rgba(4, 41, 53, 0.88)";
+    });
+    context.restore();
+  }
 
   function handleCalculate(scrollToResults) {
     storeCalculation(calculateNextPlan());

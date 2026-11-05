@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="icon-192.png">
     <link rel="apple-touch-icon" href="icon-192.png">
-    <link rel="stylesheet" href="styles.css?v=914">
+    <link rel="stylesheet" href="styles.css?v=915">
   </head>
   <body>
     <div class="app-shell">
@@ -23,7 +23,7 @@
           <button class="topbar-clear-button" id="resetApp" type="button">Vymazat údaje</button>
         </div>
         <div class="topbar-actions">
-          <span class="app-version">v9.14</span>
+          <span class="app-version">v9.15</span>
           <div class="company-mark" aria-label="SOLEA výrobní družstvo">
             <strong>SOLEA</strong>
             <span>výrobní družstvo</span>
@@ -241,6 +241,14 @@
                 </svg>
                 <span>Kalkulačka</span>
               </button>
+              <button class="icon-action counter-action" id="openPieceCounter" type="button" aria-label="Otevřít počítadlo kusů fotoaparátem">
+                <!-- Lucide Camera, ISC license in lucide-LICENSE.txt. -->
+                <svg class="toolbar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                  <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+                  <circle cx="12" cy="13" r="3" />
+                </svg>
+                <span>Počítadlo</span>
+              </button>
               <div class="add-product-wrap">
                 <button class="action-button add-action" id="addProduct" type="button" aria-expanded="false" aria-controls="productPicker">
                   <span class="action-icon" aria-hidden="true">+</span>
@@ -447,6 +455,73 @@
       </section>
     </div>
 
+    <div class="counter-sheet" id="counterSheet" hidden>
+      <div class="counter-backdrop" data-counter-close></div>
+      <section class="counter-panel" aria-label="Počítadlo kusů fotoaparátem">
+        <div class="counter-head">
+          <div>
+            <strong>Počítadlo kusů</strong>
+            <span>zkušební verze</span>
+          </div>
+          <button class="icon-button" id="counterClose" type="button" aria-label="Zavřít počítadlo">
+            <span aria-hidden="true">x</span>
+          </button>
+        </div>
+
+        <div class="counter-stage" id="counterStage">
+          <video id="counterVideo" playsinline muted hidden></video>
+          <canvas id="counterCanvas" aria-label="Obraz kamery s označenými kusy"></canvas>
+          <div class="counter-empty" id="counterEmpty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+              <circle cx="12" cy="13" r="3" />
+            </svg>
+            <strong id="counterEmptyTitle">Spouštím fotoaparát…</strong>
+            <span id="counterEmptyText">Povol přístup ke kameře.</span>
+          </div>
+          <div class="counter-live-badge" id="counterLiveBadge" hidden>Živě</div>
+          <div class="counter-count" aria-live="polite">
+            <strong id="counterCount">0</strong>
+            <span>kusů</span>
+          </div>
+        </div>
+
+        <p class="counter-status" id="counterStatus">Rozprostři rotorky tak, aby se vzájemně nedotýkaly.</p>
+
+        <div class="counter-primary-actions">
+          <button class="primary-button" id="counterCapture" type="button" disabled>Vyfotit a spočítat</button>
+          <button class="text-button" id="counterRestart" type="button" hidden>Znovu zapnout kameru</button>
+          <label class="text-button counter-file-button" for="counterFile">Vybrat fotku</label>
+          <input id="counterFile" type="file" accept="image/*" capture="environment" hidden>
+        </div>
+
+        <details class="counter-settings">
+          <summary>Doladit rozpoznání</summary>
+          <label>
+            <span>Citlivost na světlý plast</span>
+            <output id="counterSensitivityValue">55</output>
+            <input id="counterSensitivity" type="range" min="20" max="90" value="55">
+          </label>
+          <label>
+            <span>Nejmenší velikost kusu</span>
+            <output id="counterSizeValue">35</output>
+            <input id="counterSize" type="range" min="10" max="100" value="35">
+          </label>
+        </details>
+
+        <div class="counter-correction">
+          <span>Ruční oprava</span>
+          <div>
+            <button type="button" id="counterMinus" aria-label="Odečíst jeden kus">−</button>
+            <strong id="counterCorrectedCount">0 ks</strong>
+            <button type="button" id="counterPlus" aria-label="Přidat jeden kus">+</button>
+          </div>
+        </div>
+
+        <p class="counter-privacy">Fotka zůstává v telefonu a nikam se neodesílá.</p>
+      </section>
+    </div>
+
     <div class="record-sheet" id="recordSheet" hidden>
       <div class="record-backdrop" data-record-close></div>
       <section class="record-panel" aria-label="Uložené záznamy">
@@ -488,6 +563,7 @@
           <h3>Jak zadat výrobu</h3>
           <p><strong>Výrobek</strong> je název, třeba C, R nebo L. <strong>Kusů</strong> je celkový počet daného výrobku.</p>
           <p><strong>Přidat výrobu</strong> vloží samostatný řádek. Volba Jiné dovolí napsat libovolný název.</p>
+          <p><strong>Počítadlo</strong> otevře fotoaparát a zkusí spočítat rozprostřené světlé rotorky. Kusy se nesmí dotýkat. U různých stolů můžeš doladit citlivost a nejmenší velikost kusu.</p>
           <p><strong>Napsat výrobu ručně</strong> přijme více řádků najednou, například „C 336“ a „L 672“. Můžeš je přidat k současné výrobě nebo jí současné řádky nahradit.</p>
           <p><strong>Naplánovat výrobu</strong> používá cíl celé party. Vyber 168 nebo 180 kusů v bedně, tlačítky plus a minus zadej už připravené celé bedny a do Zbytku napiš počet kusů v rozpracované bedně. Potom zvol Použít jako výrobu.</p>
           <p><strong>Přesunout jednu bednu</strong> můžeš uchopením modrého přetahovátka se šipkami vedle čísla Kusů a přetažením na jinou výrobu. Přesune se 168 nebo 180 kusů podle zvolené bedny a celkový součet zůstane stejný.</p>
@@ -517,6 +593,6 @@
       </section>
     </div>
 
-    <script src="app.js?v=914" defer></script>
+    <script src="app.js?v=915" defer></script>
   </body>
 </html>
