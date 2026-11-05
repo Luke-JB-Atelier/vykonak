@@ -8,10 +8,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Výkoňák">
     <title>Výkoňák</title>
-    <link rel="manifest" href="manifest.webmanifest?v=921">
+    <link rel="manifest" href="manifest.webmanifest?v=922">
     <link rel="icon" href="icon-192.png">
     <link rel="apple-touch-icon" href="icon-192.png">
-    <link rel="stylesheet" href="styles.css?v=921">
+    <link rel="stylesheet" href="styles.css?v=922">
   </head>
   <body>
     <div class="app-shell">
@@ -23,7 +23,7 @@
           <button class="topbar-clear-button" id="resetApp" type="button">Vymazat údaje</button>
         </div>
         <div class="topbar-actions">
-          <span class="app-version">v9.21</span>
+          <span class="app-version">v9.22</span>
           <div class="company-mark" aria-label="SOLEA výrobní družstvo">
             <strong>SOLEA</strong>
             <span>výrobní družstvo</span>
@@ -501,6 +501,11 @@
               <small><span>Menší</span><span>Větší</span></small>
             </label>
           </div>
+          <label class="counter-separate">
+            <input type="checkbox" id="counterSeparate" aria-describedby="counterNotice">
+            <span>Oddělit pozadí a spojené kusy <small>zkušební</small></span>
+          </label>
+          <p class="counter-privacy" id="counterNotice">Počet je odhad. Zkontroluj značky; jiné světlé předměty mohou být započítané.</p>
           <button class="counter-calibrate" id="counterCalibrate" type="button" disabled>Zkusit automaticky (volitelné)</button>
           <div class="counter-calibration-hint" id="counterCalibrationHint" hidden>Klepni doprostřed samostatného rotorku položeného naplocho</div>
           <div class="counter-correction">
@@ -587,6 +592,6 @@
       </section>
     </div>
 
-    <script src="app.js?v=921" defer></script>
+    <script src="app.js?v=922" defer></script>
   </body>
 </html>

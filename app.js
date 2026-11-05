@@ -157,6 +157,8 @@
     counterCalibrate: document.querySelector("#counterCalibrate"),
     counterCalibrationHint: document.querySelector("#counterCalibrationHint"),
     counterMode: document.querySelector("#counterMode"),
+    counterSeparate: document.querySelector("#counterSeparate"),
+    counterNotice: document.querySelector("#counterNotice"),
     counterSensitivity: document.querySelector("#counterSensitivity"),
     counterSensitivityValue: document.querySelector("#counterSensitivityValue"),
     counterSize: document.querySelector("#counterSize"),
@@ -198,6 +200,9 @@
   let counterCalibrationMode = false;
   let counterLatestFrame = null;
   let counterCalibrationPoint = null;
+  let counterDetectorWorker = null;
+  let counterDetectionBusy = false;
+  let counterDetectionTimer = null;
   const counterWorkCanvas = document.createElement("canvas");
 
   document.querySelector("#addPerson").addEventListener("click", () => {
@@ -400,6 +405,7 @@
   els.counterCanvas.addEventListener("pointerdown", handleCounterCalibrationTap);
   els.counterSensitivity?.addEventListener("input", handleCounterSettingsChange);
   els.counterSize?.addEventListener("input", handleCounterSettingsChange);
+  els.counterSeparate?.addEventListener("change", handleCounterSettingsChange);
   els.counterMinus?.addEventListener("click", () => adjustCounter(-1));
   els.counterPlus?.addEventListener("click", () => adjustCounter(1));
   els.saveRecord.addEventListener("click", saveDailyRecord);
@@ -444,7 +450,7 @@
     });
     window.addEventListener("load", () => {
       navigator.serviceWorker
-        .register("sw.js?v=921", { updateViaCache: "none" })
+        .register("sw.js?v=922", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
       updateInstallButtons();
@@ -545,6 +551,7 @@
   }
 
   function stopCounterCamera() {
+    resetCounterWorker();
     if (counterAnimationFrame) cancelAnimationFrame(counterAnimationFrame);
     counterAnimationFrame = 0;
     if (counterStream) {
@@ -586,7 +593,7 @@
       : counterCalibration
         ? "Kalibrováno — nastavit znovu"
         : "Zkusit automaticky (volitelné)";
-    if (els.counterMode) els.counterMode.textContent = counterCalibration ? "Automaticky" : "Aktivní";
+    if (els.counterMode) els.counterMode.textContent = els.counterSeparate?.checked ? "Zkušební" : counterCalibration ? "Automaticky" : "Aktivní";
   }
 
   function handleCounterCalibrationTap(event) {
@@ -613,6 +620,7 @@
     }
 
     counterCalibration = calibration;
+    resetCounterWorker();
     counterCountHistory = [];
     counterManualCorrection = 0;
     counterCalibrationPoint = {
@@ -652,7 +660,7 @@
     const sampleDistances = samples
       .map((sample) => colorDistance(sample.red, sample.green, sample.blue, color))
       .sort((a, b) => a - b);
-    const tolerance = clampNumber(sampleDistances[Math.floor(sampleDistances.length * 0.82)] + 0.009, 0.026, 0.04);
+    const tolerance = Math.min(0.04, Math.max(0.026, sampleDistances[Math.floor(sampleDistances.length * 0.82)] + 0.009));
     const light = median(samples.map((sample) => sample.light));
     const measured = measureCalibratedPiece(frame, centerX, centerY, color, tolerance, light);
     if (!measured || measured.area < 30) return null;
@@ -784,6 +792,7 @@
   }
 
   function handleCounterSettingsChange() {
+    resetCounterWorker();
     counterCalibration = null;
     counterCalibrationPoint = null;
     counterCountHistory = [];
@@ -816,6 +825,7 @@
   }
 
   function analyseCounterSource(source) {
+    if (counterDetectionBusy) return;
     const sourceWidth = source.videoWidth || source.naturalWidth || source.width;
     const sourceHeight = source.videoHeight || source.naturalHeight || source.height;
     if (!sourceWidth || !sourceHeight) return;
@@ -828,9 +838,6 @@
       output.width = outputWidth;
       output.height = outputHeight;
     }
-    const outputContext = output.getContext("2d");
-    outputContext.clearRect(0, 0, outputWidth, outputHeight);
-
     const analysisScale = Math.min(1, 420 / Math.max(sourceWidth, sourceHeight));
     const analysisWidth = Math.max(1, Math.round(sourceWidth * analysisScale));
     const analysisHeight = Math.max(1, Math.round(sourceHeight * analysisScale));
@@ -840,6 +847,10 @@
     workContext.drawImage(source, 0, 0, analysisWidth, analysisHeight);
     const pixels = workContext.getImageData(0, 0, analysisWidth, analysisHeight).data;
     counterLatestFrame = { pixels, width: analysisWidth, height: analysisHeight };
+    if (els.counterSeparate?.checked) {
+      requestCounterDetection(counterLatestFrame);
+      return;
+    }
     const components = findCounterComponents(
       pixels,
       analysisWidth,
@@ -849,7 +860,57 @@
       counterCalibration
     );
 
-    drawCounterComponents(outputContext, components, outputWidth / analysisWidth, outputHeight / analysisHeight);
+    showCounterDetection(components, analysisWidth, analysisHeight);
+  }
+
+  function resetCounterWorker() {
+    if (counterDetectorWorker) counterDetectorWorker.terminate();
+    counterDetectorWorker = null;
+    counterDetectionBusy = false;
+    clearTimeout(counterDetectionTimer);
+    counterDetectionTimer = null;
+  }
+
+  function requestCounterDetection(frame) {
+    function failed() {
+      resetCounterWorker();
+      if (els.counterSeparate) els.counterSeparate.checked = false;
+      counterCountHistory = [];
+      updateCounterCalibrationButton();
+      if (els.counterNotice) els.counterNotice.textContent = "Zkušební režim se nepodařilo spustit. Používá se původní ruční rozpoznání.";
+    }
+    try {
+      if (!counterDetectorWorker) {
+        const worker = new Worker("counter-worker.js?v=922");
+        counterDetectorWorker = worker;
+        worker.onmessage = ({data}) => {
+          if (counterDetectorWorker !== worker) return;
+          clearTimeout(counterDetectionTimer);
+          counterDetectionBusy = false;
+          if (data.error) { failed(); return; }
+          if (counterStream && !els.counterSheet.hidden && els.counterSeparate?.checked) {
+            showCounterDetection(data.components, data.width, data.height);
+          }
+        };
+        worker.onerror = () => { if (counterDetectorWorker === worker) failed(); };
+      }
+      counterDetectionBusy = true;
+      const pixels = frame.pixels.slice();
+      counterDetectorWorker.postMessage({
+        pixels, width: frame.width, height: frame.height,
+        sensitivity: Number(els.counterSensitivity?.value || 55),
+        size: Number(els.counterSize?.value || 35),
+        calibration: counterCalibration
+      }, [pixels.buffer]);
+      counterDetectionTimer = setTimeout(failed, 10000);
+    } catch { failed(); }
+  }
+
+  function showCounterDetection(components, analysisWidth, analysisHeight) {
+    const output = els.counterCanvas;
+    const outputContext = output.getContext("2d");
+    outputContext.clearRect(0, 0, output.width, output.height);
+    drawCounterComponents(outputContext, components, output.width / analysisWidth, output.height / analysisHeight);
     if (counterCalibrationPoint && counterCalibrationPoint.until > performance.now()) {
       drawCounterCalibrationPoint(outputContext, counterCalibrationPoint);
     } else {

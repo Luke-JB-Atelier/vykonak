@@ -1027,6 +1027,22 @@ html {
   font-weight: 900;
 }
 
+.counter-separate {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid #96bdc9;
+  border-radius: 8px;
+  color: #174f62;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.counter-separate input { width: 22px; height: 22px; flex: 0 0 22px; }
+.counter-separate small { color: #715800; font-size: 0.72rem; }
+
 .counter-calibrate:disabled {
   border-color: #91aab3;
   background: #c6d5da;
