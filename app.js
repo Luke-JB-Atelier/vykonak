@@ -421,8 +421,17 @@
   });
 
   if ("serviceWorker" in navigator) {
+    let reloadingForUpdate = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (reloadingForUpdate) return;
+      reloadingForUpdate = true;
+      window.location.reload();
+    });
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("sw.js").catch(() => {});
+      navigator.serviceWorker
+        .register("sw.js?v=919", { updateViaCache: "none" })
+        .then((registration) => registration.update())
+        .catch(() => {});
       updateInstallButtons();
     });
   }
