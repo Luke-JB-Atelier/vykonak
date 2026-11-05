@@ -8,10 +8,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Výkoňák">
     <title>Výkoňák</title>
-    <link rel="manifest" href="manifest.webmanifest?v=920">
+    <link rel="manifest" href="manifest.webmanifest?v=921">
     <link rel="icon" href="icon-192.png">
     <link rel="apple-touch-icon" href="icon-192.png">
-    <link rel="stylesheet" href="styles.css?v=920">
+    <link rel="stylesheet" href="styles.css?v=921">
   </head>
   <body>
     <div class="app-shell">
@@ -23,7 +23,7 @@
           <button class="topbar-clear-button" id="resetApp" type="button">Vymazat údaje</button>
         </div>
         <div class="topbar-actions">
-          <span class="app-version">v9.20</span>
+          <span class="app-version">v9.21</span>
           <div class="company-mark" aria-label="SOLEA výrobní družstvo">
             <strong>SOLEA</strong>
             <span>výrobní družstvo</span>
@@ -466,7 +466,7 @@
         </div>
 
         <div class="counter-stage" id="counterStage">
-          <video id="counterVideo" playsinline muted hidden></video>
+          <video id="counterVideo" playsinline muted></video>
           <canvas id="counterCanvas" aria-label="Obraz kamery s označenými kusy"></canvas>
           <div class="counter-empty" id="counterEmpty">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -483,8 +483,35 @@
           </div>
         </div>
         <div class="counter-calibration-controls">
-          <button class="counter-calibrate" id="counterCalibrate" type="button" disabled>Kalibrace se připravuje…</button>
+          <div class="counter-settings">
+            <div class="counter-settings-title">
+              <strong>Ruční nastavení</strong>
+              <span id="counterMode">Aktivní</span>
+            </div>
+            <label>
+              <span>Citlivost rozpoznání</span>
+              <output id="counterSensitivityValue">55</output>
+              <input id="counterSensitivity" type="range" min="20" max="90" value="55">
+              <small><span>Méně objektů</span><span>Více objektů</span></small>
+            </label>
+            <label>
+              <span>Nejmenší velikost kusu</span>
+              <output id="counterSizeValue">35</output>
+              <input id="counterSize" type="range" min="10" max="100" value="35">
+              <small><span>Menší</span><span>Větší</span></small>
+            </label>
+          </div>
+          <button class="counter-calibrate" id="counterCalibrate" type="button" disabled>Zkusit automaticky (volitelné)</button>
           <div class="counter-calibration-hint" id="counterCalibrationHint" hidden>Klepni doprostřed samostatného rotorku položeného naplocho</div>
+          <div class="counter-correction">
+            <span>Ruční oprava počtu</span>
+            <div>
+              <button type="button" id="counterMinus" aria-label="Odečíst jeden kus">−</button>
+              <strong id="counterCorrectedCount">0 ks</strong>
+              <button type="button" id="counterPlus" aria-label="Přidat jeden kus">+</button>
+            </div>
+          </div>
+          <p class="counter-privacy">Používá se pouze živý obraz. Nic se nefotí ani neukládá.</p>
         </div>
       </section>
     </div>
@@ -530,10 +557,10 @@
           <h3>Jak zadat výrobu</h3>
           <p><strong>Výrobek</strong> je název, třeba C, R nebo L. <strong>Kusů</strong> je celkový počet daného výrobku.</p>
           <p><strong>Přidat výrobu</strong> vloží samostatný řádek. Volba Jiné dovolí napsat libovolný název.</p>
-          <p><strong>Počítadlo</strong> otevře živou kameru, označí rozpoznané rotorky a ukáže jejich počet. Fotografie nevytváří ani neukládá. Tlačítkem Kalibrovat a klepnutím doprostřed jednoho samostatného rotorku položeného naplocho přizpůsobíš rozpoznání aktuálnímu světlu a velikosti kusů.</p>
+          <p><strong>Počítadlo</strong> otevře plynulou živou kameru, označí rozpoznané rotorky a ukáže stabilizovaný počet. Fotografie nevytváří ani neukládá. Hlavní jsou dva ruční posuvníky; jejich nastavení si telefon zapamatuje. Automatickou kalibraci můžeš použít volitelně.</p>
           <p><strong>Napsat výrobu ručně</strong> přijme více řádků najednou, například „C 336“ a „L 672“. Můžeš je přidat k současné výrobě nebo jí současné řádky nahradit.</p>
           <p><strong>Naplánovat výrobu</strong> používá cíl celé party. Vyber 168 nebo 180 kusů v bedně, tlačítky plus a minus zadej už připravené celé bedny a do Zbytku napiš počet kusů v rozpracované bedně. Potom zvol Použít jako výrobu.</p>
-          <p><strong>Přesunout jednu bednu</strong> můžeš uchopením modrého přetahovátka se šipkami vedle čísla Kusů a přetažením na jinou výrobu. Přesune se 168 nebo 180 kusů podle zvolené bedny a celkový součet zůstane stejný.</p>
+          <p><strong>Přesunout jednu bednu</strong> můžeš uchopením modrého přetahovátka se šipkami vedle čísla Kusů a přetažením na jinou výrobu. UL zelená, UL zlatá a UL bordó vždy přesouvají a počítají bednu po 180 kusech; ostatní barvy po 168 kusech.</p>
           <p><strong>Sečíst kusy</strong> otevře kalkulačku pro počet kusů. Tlačítko <strong>i</strong> v pravém dolním rohu otevře poznámku.</p>
           <p><strong>Celé</strong> znamená celé bedny. <strong>Doplněno</strong> je začátek směny, kdy se dodělává rozpracovaná bedna. <strong>Rozprac.</strong> je konec směny, kdy něco zůstalo v bedně.</p>
 
@@ -560,6 +587,6 @@
       </section>
     </div>
 
-    <script src="app.js?v=920" defer></script>
+    <script src="app.js?v=921" defer></script>
   </body>
 </html>

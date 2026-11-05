@@ -896,8 +896,12 @@ html {
   background: #102a35;
 }
 
-.counter-stage video[hidden] {
-  display: none;
+.counter-stage canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: transparent;
+  pointer-events: none;
 }
 
 .counter-empty {
@@ -910,6 +914,7 @@ html {
   padding: 24px;
   color: #dceff5;
   text-align: center;
+  z-index: 2;
 }
 
 .counter-empty[hidden] {
@@ -939,6 +944,7 @@ html {
   font-weight: 900;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+  z-index: 3;
 }
 
 .counter-live-badge[hidden] {
@@ -948,6 +954,65 @@ html {
 .counter-calibration-controls {
   display: grid;
   gap: 7px;
+}
+
+.counter-settings {
+  display: grid;
+  gap: 5px;
+  padding: 10px 11px;
+  border: 1px solid #b8d4dc;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.counter-settings-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #174f62;
+  font-size: 0.86rem;
+}
+
+.counter-settings-title span {
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #d8edf3;
+  color: #17627a;
+  font-size: 0.7rem;
+  font-weight: 900;
+}
+
+.counter-settings label {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 2px 10px;
+  color: #315866;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.counter-settings output {
+  min-width: 2.2em;
+  text-align: right;
+}
+
+.counter-settings input[type="range"] {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: 44px;
+  margin: -5px 0;
+  accent-color: #0f7896;
+}
+
+.counter-settings small {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  color: #71868e;
+  font-size: 0.66rem;
+  font-weight: 700;
 }
 
 .counter-calibrate {
@@ -993,9 +1058,49 @@ html {
   display: none;
 }
 
+.counter-correction {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #315866;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.counter-correction > div {
+  display: grid;
+  grid-template-columns: 44px minmax(74px, auto) 44px;
+  align-items: center;
+  gap: 6px;
+}
+
+.counter-correction button {
+  width: 44px;
+  min-height: 44px;
+  border: 1px solid #96bdc9;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #075678;
+  font-size: 1.35rem;
+  font-weight: 900;
+}
+
+.counter-correction strong {
+  color: #102a35;
+  text-align: center;
+}
+
+.counter-privacy {
+  margin: 0;
+  color: #56717a;
+  font-size: 0.76rem;
+}
+
 .counter-stage.is-calibrating canvas {
   cursor: crosshair;
   touch-action: none;
+  pointer-events: auto;
 }
 
 .counter-count {
@@ -1012,6 +1117,7 @@ html {
   background: rgba(5, 39, 52, 0.88);
   color: #ffffff;
   box-shadow: 0 5px 16px rgba(0, 0, 0, 0.25);
+  z-index: 3;
 }
 
 .counter-count strong {

@@ -2,6 +2,7 @@
   const STORAGE_KEY = "vykonak-kalkulator-v2";
   const RECORDS_KEY = "vykonak-denni-zaznamy-v1";
   const CALC_VIBRATION_KEY = "vykonak-calculator-vibration";
+  const COUNTER_SETTINGS_KEY = "vykonak-counter-settings-v1";
   const DEFAULT_RATE = 45;
   const DEFAULT_HOURS = 6;
   const DEFAULT_PRODUCTION_COLOR = "blue";
@@ -155,6 +156,14 @@
     counterLiveBadge: document.querySelector("#counterLiveBadge"),
     counterCalibrate: document.querySelector("#counterCalibrate"),
     counterCalibrationHint: document.querySelector("#counterCalibrationHint"),
+    counterMode: document.querySelector("#counterMode"),
+    counterSensitivity: document.querySelector("#counterSensitivity"),
+    counterSensitivityValue: document.querySelector("#counterSensitivityValue"),
+    counterSize: document.querySelector("#counterSize"),
+    counterSizeValue: document.querySelector("#counterSizeValue"),
+    counterMinus: document.querySelector("#counterMinus"),
+    counterPlus: document.querySelector("#counterPlus"),
+    counterCorrectedCount: document.querySelector("#counterCorrectedCount"),
     counterCount: document.querySelector("#counterCount"),
     calculate: document.querySelector("#calculate"),
     calculateBottom: document.querySelector("#calculateBottom"),
@@ -183,6 +192,7 @@
   let counterAnimationFrame = 0;
   let counterLastFrameAt = 0;
   let counterBaseCount = 0;
+  let counterManualCorrection = 0;
   let counterCountHistory = [];
   let counterCalibration = null;
   let counterCalibrationMode = false;
@@ -232,7 +242,9 @@
 
   els.productionPlanner.querySelectorAll("[data-box-size]").forEach((button) => {
     button.addEventListener("click", () => {
-      plannerBoxSize = Number(button.dataset.boxSize) || 168;
+      const requestedSize = Number(button.dataset.boxSize) || 168;
+      if (requestedSize !== defaultBoxPieces()) return;
+      plannerBoxSize = requestedSize;
       updatePlannerBoxButtons();
       clampPlannerRemainders();
       updateProductionPlanner(true);
@@ -386,6 +398,10 @@
   els.counterSheet.querySelector("[data-counter-close]").addEventListener("click", closePieceCounter);
   els.counterCalibrate?.addEventListener("click", toggleCounterCalibration);
   els.counterCanvas.addEventListener("pointerdown", handleCounterCalibrationTap);
+  els.counterSensitivity?.addEventListener("input", handleCounterSettingsChange);
+  els.counterSize?.addEventListener("input", handleCounterSettingsChange);
+  els.counterMinus?.addEventListener("click", () => adjustCounter(-1));
+  els.counterPlus?.addEventListener("click", () => adjustCounter(1));
   els.saveRecord.addEventListener("click", saveDailyRecord);
   els.loadRecord.addEventListener("click", openRecordLoader);
   els.recordClose.addEventListener("click", closeRecordLoader);
@@ -406,17 +422,16 @@
 
   els.productionColor.addEventListener("change", () => {
     const previous = normalizeProductionColor(state.settings.productionColor || "");
+    const previousBoxSize = isUlProductionColor(previous) ? 180 : 168;
     state.settings.productionColor = els.productionColor.value;
     const current = normalizeProductionColor(state.settings.productionColor || "");
-    if (isUlProductionColor(current)) {
-      state.products.forEach((product) => {
-        if (!product.pieces || product.pieces === 168) product.pieces = 180;
-      });
-    } else if (isUlProductionColor(previous)) {
-      state.products.forEach((product) => {
-        if (product.pieces === 180) product.pieces = 168;
-      });
-    }
+    const currentBoxSize = isUlProductionColor(current) ? 180 : 168;
+    plannerBoxSize = currentBoxSize;
+    state.products.forEach((product) => {
+      if (!product.pieces || product.pieces === previousBoxSize) product.pieces = currentBoxSize;
+      product.boxSize = currentBoxSize;
+    });
+    clampPlannerRemainders();
     render();
   });
 
@@ -429,7 +444,7 @@
     });
     window.addEventListener("load", () => {
       navigator.serviceWorker
-        .register("sw.js?v=920", { updateViaCache: "none" })
+        .register("sw.js?v=921", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
       updateInstallButtons();
@@ -437,12 +452,14 @@
   }
 
   updateInstallButtons();
+  loadCounterSettings();
 
   render();
   restoreCalculation();
 
   async function openPieceCounter() {
     counterBaseCount = 0;
+    counterManualCorrection = 0;
     counterCountHistory = [];
     counterCalibration = null;
     counterLatestFrame = null;
@@ -466,6 +483,7 @@
     stopCounterCamera();
     counterCountHistory = [];
     counterBaseCount = 0;
+    counterManualCorrection = 0;
     updateCounterCount();
     setCounterEmpty("Spouštím fotoaparát…", "Povol přístup ke kameře.");
     els.counterLiveBadge.hidden = true;
@@ -489,7 +507,7 @@
         audio: false
       });
       els.counterVideo.srcObject = counterStream;
-      tuneCounterCamera(counterStream.getVideoTracks()[0]);
+      els.counterVideo.hidden = false;
       await els.counterVideo.play();
       els.counterEmpty.hidden = true;
       els.counterLiveBadge.hidden = false;
@@ -513,19 +531,6 @@
     if (els.counterCalibrate) {
       els.counterCalibrate.disabled = true;
       els.counterCalibrate.textContent = "Kalibrace není dostupná";
-    }
-  }
-
-  async function tuneCounterCamera(track) {
-    if (!track || typeof track.getCapabilities !== "function" || typeof track.applyConstraints !== "function") return;
-    try {
-      const capabilities = track.getCapabilities();
-      const exposure = capabilities && capabilities.exposureCompensation;
-      if (!exposure || typeof exposure.min !== "number" || typeof exposure.max !== "number") return;
-      const darkerExposure = Math.max(exposure.min, Math.min(exposure.max, -1));
-      await track.applyConstraints({ advanced: [{ exposureCompensation: darkerExposure }] });
-    } catch (error) {
-      // Camera exposure controls are optional. Canvas contrast still applies.
     }
   }
 
@@ -553,7 +558,7 @@
 
   function counterLiveLoop(time) {
     if (!counterStream || els.counterSheet.hidden) return;
-    if (time - counterLastFrameAt > 260 && els.counterVideo.readyState >= 2) {
+    if (time - counterLastFrameAt > 420 && els.counterVideo.readyState >= 2) {
       counterLastFrameAt = time;
       analyseCounterSource(els.counterVideo);
     }
@@ -580,7 +585,8 @@
       ? "Zrušit kalibraci"
       : counterCalibration
         ? "Kalibrováno — nastavit znovu"
-        : "Kalibrovat rozpoznání";
+        : "Zkusit automaticky (volitelné)";
+    if (els.counterMode) els.counterMode.textContent = counterCalibration ? "Automaticky" : "Aktivní";
   }
 
   function handleCounterCalibrationTap(event) {
@@ -608,6 +614,7 @@
 
     counterCalibration = calibration;
     counterCountHistory = [];
+    counterManualCorrection = 0;
     counterCalibrationPoint = {
       x: canvasX,
       y: canvasY,
@@ -757,7 +764,55 @@
   }
 
   function updateCounterCount() {
-    els.counterCount.textContent = String(Math.max(0, counterBaseCount));
+    const count = Math.max(0, counterBaseCount + counterManualCorrection);
+    els.counterCount.textContent = String(count);
+    if (els.counterCorrectedCount) els.counterCorrectedCount.textContent = `${count} ks`;
+  }
+
+  function loadCounterSettings() {
+    if (!els.counterSensitivity || !els.counterSize) return;
+    try {
+      const saved = JSON.parse(localStorage.getItem(COUNTER_SETTINGS_KEY) || "null");
+      if (saved) {
+        els.counterSensitivity.value = String(clampNumber(saved.sensitivity, 20, 90));
+        els.counterSize.value = String(clampNumber(saved.size, 10, 100));
+      }
+    } catch {
+      // Invalid local settings fall back to the proven 55 / 35 defaults.
+    }
+    updateCounterSettingsLabels();
+  }
+
+  function handleCounterSettingsChange() {
+    counterCalibration = null;
+    counterCalibrationPoint = null;
+    counterCountHistory = [];
+    counterManualCorrection = 0;
+    setCounterCalibrationMode(false);
+    updateCounterSettingsLabels();
+    try {
+      localStorage.setItem(COUNTER_SETTINGS_KEY, JSON.stringify({
+        sensitivity: Number(els.counterSensitivity.value),
+        size: Number(els.counterSize.value)
+      }));
+    } catch {
+      // The controls still work when local storage is unavailable.
+    }
+    updateCounterCount();
+  }
+
+  function updateCounterSettingsLabels() {
+    if (els.counterSensitivityValue && els.counterSensitivity) {
+      els.counterSensitivityValue.textContent = els.counterSensitivity.value;
+    }
+    if (els.counterSizeValue && els.counterSize) {
+      els.counterSizeValue.textContent = els.counterSize.value;
+    }
+  }
+
+  function adjustCounter(delta) {
+    counterManualCorrection = Math.max(-counterBaseCount, counterManualCorrection + delta);
+    updateCounterCount();
   }
 
   function analyseCounterSource(source) {
@@ -773,11 +828,8 @@
       output.width = outputWidth;
       output.height = outputHeight;
     }
-    const outputContext = output.getContext("2d", { alpha: false });
-    outputContext.save();
-    outputContext.filter = "brightness(0.82) contrast(1.18) saturate(0.9)";
-    outputContext.drawImage(source, 0, 0, outputWidth, outputHeight);
-    outputContext.restore();
+    const outputContext = output.getContext("2d");
+    outputContext.clearRect(0, 0, outputWidth, outputHeight);
 
     const analysisScale = Math.min(1, 420 / Math.max(sourceWidth, sourceHeight));
     const analysisWidth = Math.max(1, Math.round(sourceWidth * analysisScale));
@@ -792,8 +844,8 @@
       pixels,
       analysisWidth,
       analysisHeight,
-      55,
-      35,
+      Number(els.counterSensitivity?.value || 55),
+      Number(els.counterSize?.value || 35),
       counterCalibration
     );
 
@@ -805,9 +857,12 @@
     }
     const detectedCount = components.reduce((sum, component) => sum + (component.weight || 1), 0);
     counterCountHistory.push(detectedCount);
-    if (counterCountHistory.length > 5) counterCountHistory.shift();
+    if (counterCountHistory.length > 7) counterCountHistory.shift();
     const sorted = [...counterCountHistory].sort((a, b) => a - b);
-    counterBaseCount = sorted[Math.floor(sorted.length / 2)] || 0;
+    const candidate = sorted[Math.floor(sorted.length / 2)] || 0;
+    const largeJump = counterBaseCount > 0 && Math.abs(candidate - counterBaseCount) > Math.max(2, counterBaseCount * 0.3);
+    const confirmations = counterCountHistory.filter((count) => Math.abs(count - candidate) <= 1).length;
+    if (!largeJump || confirmations >= 4) counterBaseCount = candidate;
     updateCounterCount();
   }
 
@@ -1099,6 +1154,10 @@
   }
 
   function render() {
+    plannerBoxSize = defaultBoxPieces();
+    state.products.forEach((product) => {
+      product.boxSize = plannerBoxSize;
+    });
     updateTodayInfo();
     els.minRecordHours.value = String(state.settings.minRecordHours);
     els.boxCompletionLimit.value = String(state.settings.boxCompletionLimit);
@@ -1570,7 +1629,7 @@
   }
 
   function productBoxPieces(product) {
-    return [168, 180].includes(product.boxSize) ? product.boxSize : defaultBoxPieces();
+    return defaultBoxPieces();
   }
 
   // Only new pieces count toward the shift; inherited pieces still complete a physical box.
@@ -1873,8 +1932,10 @@
   }
 
   function updatePlannerBoxButtons() {
+    const requiredSize = defaultBoxPieces();
     els.productionPlanner.querySelectorAll("[data-box-size]").forEach((button) => {
       button.classList.toggle("is-active", Number(button.dataset.boxSize) === plannerBoxSize);
+      button.disabled = Number(button.dataset.boxSize) !== requiredSize;
     });
   }
 
