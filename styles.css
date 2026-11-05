@@ -945,19 +945,27 @@ html {
   display: none;
 }
 
+.counter-calibration-controls {
+  display: grid;
+  gap: 7px;
+}
+
 .counter-calibrate {
-  position: absolute;
-  left: 10px;
-  bottom: 10px;
-  z-index: 2;
-  min-height: 42px;
-  padding: 7px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  border-radius: 8px;
-  background: rgba(5, 39, 52, 0.88);
+  width: 100%;
+  min-height: 52px;
+  padding: 10px 14px;
+  border: 1px solid #0a617d;
+  border-radius: 10px;
+  background: #0b6280;
   color: #ffffff;
-  font-size: 0.78rem;
+  font-size: 1rem;
   font-weight: 900;
+}
+
+.counter-calibrate:disabled {
+  border-color: #91aab3;
+  background: #c6d5da;
+  color: #526a73;
 }
 
 .counter-calibrate.is-active {
@@ -971,17 +979,12 @@ html {
 }
 
 .counter-calibration-hint {
-  position: absolute;
-  top: 10px;
-  left: 50%;
-  z-index: 2;
-  max-width: calc(100% - 150px);
-  padding: 6px 10px;
-  transform: translateX(-50%);
-  border-radius: 999px;
-  background: rgba(134, 96, 11, 0.94);
-  color: #ffffff;
-  font-size: 0.74rem;
+  padding: 8px 10px;
+  border: 1px solid #c49b37;
+  border-radius: 8px;
+  background: #fff3c8;
+  color: #5e4305;
+  font-size: 0.82rem;
   font-weight: 900;
   text-align: center;
 }

@@ -11,7 +11,7 @@
     <link rel="manifest" href="manifest.webmanifest">
     <link rel="icon" href="icon-192.png">
     <link rel="apple-touch-icon" href="icon-192.png">
-    <link rel="stylesheet" href="styles.css?v=917">
+    <link rel="stylesheet" href="styles.css?v=918">
   </head>
   <body>
     <div class="app-shell">
@@ -23,7 +23,7 @@
           <button class="topbar-clear-button" id="resetApp" type="button">Vymazat údaje</button>
         </div>
         <div class="topbar-actions">
-          <span class="app-version">v9.17</span>
+          <span class="app-version">v9.18</span>
           <div class="company-mark" aria-label="SOLEA výrobní družstvo">
             <strong>SOLEA</strong>
             <span>výrobní družstvo</span>
@@ -477,12 +477,14 @@
             <span id="counterEmptyText">Povol přístup ke kameře.</span>
           </div>
           <div class="counter-live-badge" id="counterLiveBadge" hidden>Živě</div>
-          <button class="counter-calibrate" id="counterCalibrate" type="button">Kalibrovat</button>
-          <div class="counter-calibration-hint" id="counterCalibrationHint" hidden>Klepni doprostřed samostatného rotorku položeného naplocho</div>
           <div class="counter-count" aria-live="polite">
             <strong id="counterCount">0</strong>
             <span>kusů</span>
           </div>
+        </div>
+        <div class="counter-calibration-controls">
+          <button class="counter-calibrate" id="counterCalibrate" type="button" disabled>Kalibrace se připravuje…</button>
+          <div class="counter-calibration-hint" id="counterCalibrationHint" hidden>Klepni doprostřed samostatného rotorku položeného naplocho</div>
         </div>
       </section>
     </div>
@@ -558,6 +560,6 @@
       </section>
     </div>
 
-    <script src="app.js?v=917" defer></script>
+    <script src="app.js?v=918" defer></script>
   </body>
 </html>

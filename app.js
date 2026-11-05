@@ -460,7 +460,8 @@
     updateCounterCount();
     setCounterEmpty("Spouštím fotoaparát…", "Povol přístup ke kameře.");
     els.counterLiveBadge.hidden = true;
-    els.counterCalibrate.hidden = true;
+    els.counterCalibrate.disabled = true;
+    els.counterCalibrate.textContent = "Kalibrace se připravuje…";
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       setCounterCameraUnavailable();
@@ -481,7 +482,8 @@
       await els.counterVideo.play();
       els.counterEmpty.hidden = true;
       els.counterLiveBadge.hidden = false;
-      els.counterCalibrate.hidden = false;
+      els.counterCalibrate.disabled = false;
+      updateCounterCalibrationButton();
       counterLastFrameAt = 0;
       counterAnimationFrame = requestAnimationFrame(counterLiveLoop);
     } catch (error) {
@@ -497,7 +499,8 @@
         ? "Povol přístup ke kameře a otevři Počítadlo znovu."
         : "Otevři Výkoňák přímo v prohlížeči; vložené okno může kameru blokovat."
     );
-    els.counterCalibrate.hidden = true;
+    els.counterCalibrate.disabled = true;
+    els.counterCalibrate.textContent = "Kalibrace není dostupná";
   }
 
   async function tuneCounterCamera(track) {
@@ -560,10 +563,10 @@
     els.counterCalibrate.classList.toggle("is-active", counterCalibrationMode);
     els.counterCalibrate.classList.toggle("is-calibrated", Boolean(counterCalibration) && !counterCalibrationMode);
     els.counterCalibrate.textContent = counterCalibrationMode
-      ? "Zrušit"
+      ? "Zrušit kalibraci"
       : counterCalibration
-        ? "Kalibrováno"
-        : "Kalibrovat";
+        ? "Kalibrováno — nastavit znovu"
+        : "Kalibrovat rozpoznání";
   }
 
   function handleCounterCalibrationTap(event) {
