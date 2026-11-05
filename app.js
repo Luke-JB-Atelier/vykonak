@@ -634,6 +634,7 @@
     state.products.forEach((product) => {
       fillProductInfoPieces(product);
       const node = els.productTemplate.content.firstElementChild.cloneNode(true);
+      node.dataset.productId = product.id;
       setInput(node, "name", product.name);
       setInput(node, "pieces", product.pieces);
       setInput(node, "noteType", product.noteType || "");
@@ -653,10 +654,12 @@
       const noteToggle = node.querySelector(".info-toggle");
       const noteField = node.querySelector(".product-note");
       const breakdown = node.querySelector(".product-breakdown");
+      const piecesInput = node.querySelector('[data-field="pieces"]');
       const noteOpen = Boolean(product.noteOpen || product.note);
       noteField.hidden = !noteOpen;
       noteToggle.classList.toggle("is-active", noteOpen);
       updateProductBreakdown(product, breakdown);
+      enableBoxTransfer(piecesInput, product);
 
       node.addEventListener("input", (event) => {
         const field = event.target.dataset.field;
@@ -709,6 +712,99 @@
 
       els.productRows.append(node);
     });
+  }
+
+  function enableBoxTransfer(input, sourceProduct) {
+    let holdTimer = 0;
+    let activePointer = null;
+    let transferActive = false;
+    let ghost = null;
+    let targetCard = null;
+    const boxSize = productBoxPieces(sourceProduct);
+
+    input.classList.add("box-transfer-source");
+    input.title = `Podrž a přetáhni do jiné výroby: přesune se ${boxSize} ks`;
+
+    const clearTarget = () => {
+      targetCard?.classList.remove("box-transfer-target");
+      targetCard = null;
+    };
+
+    const finish = (event, shouldTransfer) => {
+      window.clearTimeout(holdTimer);
+      holdTimer = 0;
+      const targetProduct = transferActive && shouldTransfer && targetCard
+        ? state.products.find((item) => item.id === targetCard.dataset.productId)
+        : null;
+      clearTarget();
+      ghost?.remove();
+      ghost = null;
+      input.closest(".product-card")?.classList.remove("box-transfer-active");
+      transferActive = false;
+      activePointer = null;
+      if (input.hasPointerCapture?.(event.pointerId)) input.releasePointerCapture(event.pointerId);
+      if (targetProduct) transferOneBox(sourceProduct, targetProduct, boxSize);
+    };
+
+    input.addEventListener("pointerdown", (event) => {
+      if (event.button !== undefined && event.button !== 0) return;
+      if (numberOrZero(sourceProduct.pieces) < boxSize) return;
+      activePointer = event.pointerId;
+      holdTimer = window.setTimeout(() => {
+        if (activePointer !== event.pointerId) return;
+        transferActive = true;
+        input.setPointerCapture?.(event.pointerId);
+        input.closest(".product-card")?.classList.add("box-transfer-active");
+        ghost = document.createElement("div");
+        ghost.className = "box-transfer-ghost";
+        ghost.textContent = `${boxSize} ks`;
+        document.body.append(ghost);
+        positionTransferGhost(ghost, event.clientX, event.clientY);
+        navigator.vibrate?.(35);
+      }, 420);
+    });
+
+    input.addEventListener("pointermove", (event) => {
+      if (!transferActive || event.pointerId !== activePointer) return;
+      event.preventDefault();
+      positionTransferGhost(ghost, event.clientX, event.clientY);
+      clearTarget();
+      const candidate = document.elementFromPoint(event.clientX, event.clientY)?.closest(".product-card");
+      if (candidate && candidate.dataset.productId !== sourceProduct.id) {
+        targetCard = candidate;
+        targetCard.classList.add("box-transfer-target");
+      }
+    });
+
+    input.addEventListener("pointerup", (event) => {
+      finish(event, transferActive);
+    });
+    input.addEventListener("pointercancel", (event) => finish(event, false));
+    input.addEventListener("lostpointercapture", (event) => {
+      if (activePointer === event.pointerId) finish(event, false);
+    });
+    input.addEventListener("contextmenu", (event) => {
+      if (transferActive) event.preventDefault();
+    });
+  }
+
+  function positionTransferGhost(ghost, x, y) {
+    if (!ghost) return;
+    ghost.style.left = `${x}px`;
+    ghost.style.top = `${y}px`;
+  }
+
+  function transferOneBox(sourceProduct, targetProduct, boxSize) {
+    if (!targetProduct || targetProduct.id === sourceProduct.id) return;
+    if (numberOrZero(sourceProduct.pieces) < boxSize) return;
+    sourceProduct.pieces = numberOrZero(sourceProduct.pieces) - boxSize;
+    targetProduct.pieces = numberOrZero(targetProduct.pieces) + boxSize;
+    delete state.settings.boxCompletion;
+    fillProductInfoPieces(sourceProduct);
+    fillProductInfoPieces(targetProduct);
+    navigator.vibrate?.([28, 35, 28]);
+    renderProducts();
+    saveAndUpdateSummary();
   }
 
   function addProductRow(name = "") {
@@ -1194,26 +1290,15 @@
 
     const variants = [];
     const seen = new Set();
-    permute(recommended.map((item) => item.name)).forEach((names) => {
-      const variant = recommended.map((item, index) => ({
-        name: names[index],
-        pieces: item.pieces
-      }));
-      // Close the non-final products at physical box boundaries; carry their unused work forward.
-      for (let index = 0; index < variant.length - 1; index += 1) {
-        const item = variant[index];
-        const inherited = stock.find((entry) => entry.name === item.name)?.remainder || 0;
-        const carry = Math.min(item.pieces, (item.pieces + inherited) % boxSize);
-        item.pieces -= carry;
-        variant[variant.length - 1].pieces += carry;
-      }
-      const signature = variant
-        .map((item) => `${item.name}:${item.pieces}`)
-        .sort((a, b) => a.localeCompare(b, "cs"))
-        .join("|");
+    permute(recommended).forEach((items) => {
+      // A variant changes only the production order. The amount always stays
+      // attached to its L/C/R product so the stock-balancing recommendation
+      // cannot change merely because another order was selected.
+      const variant = items.map((item) => ({ ...item }));
+      const signature = variant.map((item) => `${item.name}:${item.pieces}`).join("|");
       if (seen.has(signature)) return;
       seen.add(signature);
-      variants.push(variant.filter((item) => item.pieces > 0));
+      variants.push(variant);
     });
     return variants;
   }
@@ -1241,62 +1326,73 @@
   function buildProductionPlan(capacity, stock, boxSize) {
     if (capacity <= 0 || !stock.length) return [];
 
-    const names = stock.map((item) => item.name);
-    const starter = stock.find((item) => item.remainder > 0)?.name || chooseLowestStockProduct(stock)?.name || names[0];
-    const finalProduct = chooseFinalProduct(stock, starter) || names.find((name) => name !== starter) || starter;
-    const middle = names.find((name) => name !== starter && name !== finalProduct) || names.find((name) => name !== starter) || starter;
+    const rankedStock = stock
+      .map((item, index) => ({
+        ...item,
+        index,
+        totalPieces: item.boxes * boxSize + item.remainder
+      }))
+      .sort((a, b) => a.totalPieces - b.totalPieces || a.index - b.index);
+    const allocation = allocateProductionByStock(capacity, rankedStock, boxSize);
 
-    const firstPieces = chooseLargePlanBlock(capacity, boxSize);
-    let remaining = Math.max(0, capacity - firstPieces);
-    let secondPieces = remaining > 0 ? Math.min(firstPieces, remaining) : 0;
-    remaining = Math.max(0, remaining - secondPieces);
+    // Keep a partly filled box first. Otherwise start with the product that
+    // currently has the lowest stock. Remaining variants only change order.
+    const starter = stock.find((item) => item.remainder > 0)?.name || rankedStock[0]?.name;
+    const orderedNames = [starter, ...rankedStock.map((item) => item.name)]
+      .filter((name, index, names) => name && names.indexOf(name) === index);
+    return orderedNames
+      .map((name) => ({ name, pieces: allocation.get(name) || 0 }))
+      .filter((item) => item.pieces > 0);
+  }
 
-    while (remaining > boxSize && secondPieces + boxSize <= capacity - firstPieces) {
-      secondPieces += boxSize;
-      remaining -= boxSize;
+  function allocateProductionByStock(capacity, rankedStock, boxSize) {
+    const allocation = new Map(rankedStock.map((item) => [item.name, 0]));
+    if (rankedStock.length === 1) {
+      allocation.set(rankedStock[0].name, capacity);
+      return allocation;
     }
 
-    const result = [
-      { name: starter, pieces: firstPieces },
-      { name: middle, pieces: secondPieces },
-      { name: finalProduct, pieces: remaining }
-    ].filter((item) => item.pieces > 0);
+    // Every selected product gets a base weight of one box. A product then
+    // gains another box of weight for every box-equivalent it trails the
+    // highest current stock. This keeps all products in the plan while giving
+    // substantially more work to the products that need to catch up.
+    const highestStock = Math.max(...rankedStock.map((item) => item.totalPieces));
+    const weighted = rankedStock.map((item) => ({
+      ...item,
+      weight: highestStock - item.totalPieces + boxSize,
+      boxes: 0,
+      quota: 0
+    }));
+    const weightTotal = weighted.reduce((total, item) => total + item.weight, 0);
+    const wholeBoxes = Math.floor(capacity / boxSize);
+    const loosePieces = capacity % boxSize;
 
-    return mergePlanProducts(result);
-  }
-
-  function chooseLargePlanBlock(capacity, boxSize) {
-    const count = Math.max(1, Math.floor(capacity / boxSize / 2));
-    return Math.min(capacity, count * boxSize);
-  }
-
-  function chooseLowestStockProduct(stock) {
-    return stock
-      .map((item, index) => ({ item, index }))
-      .sort((a, b) => a.item.boxes - b.item.boxes || a.index - b.index)[0]?.item;
-  }
-
-  function chooseFinalProduct(stock, starter) {
-    const candidates = stock.filter((item) => item.name !== starter);
-    if (!candidates.length) return null;
-    const withBoxes = candidates.filter((item) => item.boxes > 0);
-    if (!withBoxes.length) return candidates[candidates.length - 1].name;
-    return withBoxes
-      .map((item, index) => ({ item, index }))
-      .sort((a, b) => b.item.boxes - a.item.boxes || a.index - b.index)[0].item.name;
-  }
-
-  function mergePlanProducts(products) {
-    const merged = [];
-    products.forEach((product) => {
-      const existing = merged.find((item) => item.name === product.name);
-      if (existing) {
-        existing.pieces += product.pieces;
-      } else {
-        merged.push({ ...product });
-      }
+    weighted.forEach((item) => {
+      item.quota = wholeBoxes * item.weight / weightTotal;
+      item.boxes = Math.floor(item.quota);
     });
-    return merged;
+    let boxesLeft = wholeBoxes - weighted.reduce((total, item) => total + item.boxes, 0);
+    weighted
+      .slice()
+      .sort((a, b) => (b.quota - b.boxes) - (a.quota - a.boxes)
+        || b.weight - a.weight
+        || a.index - b.index)
+      .forEach((item) => {
+        if (boxesLeft <= 0) return;
+        item.boxes += 1;
+        boxesLeft -= 1;
+      });
+
+    weighted.forEach((item) => allocation.set(item.name, item.boxes * boxSize));
+    if (loosePieces > 0) {
+      const partialTarget = weighted
+        .slice()
+        .sort((a, b) => (allocation.get(a.name) / a.weight) - (allocation.get(b.name) / b.weight)
+          || b.weight - a.weight
+          || a.index - b.index)[0];
+      allocation.set(partialTarget.name, allocation.get(partialTarget.name) + loosePieces);
+    }
+    return allocation;
   }
 
   function renderProductionPlanPreview(capacity, stock) {
