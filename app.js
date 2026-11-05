@@ -153,17 +153,6 @@
     counterEmptyText: document.querySelector("#counterEmptyText"),
     counterLiveBadge: document.querySelector("#counterLiveBadge"),
     counterCount: document.querySelector("#counterCount"),
-    counterCorrectedCount: document.querySelector("#counterCorrectedCount"),
-    counterStatus: document.querySelector("#counterStatus"),
-    counterCapture: document.querySelector("#counterCapture"),
-    counterRestart: document.querySelector("#counterRestart"),
-    counterFile: document.querySelector("#counterFile"),
-    counterSensitivity: document.querySelector("#counterSensitivity"),
-    counterSensitivityValue: document.querySelector("#counterSensitivityValue"),
-    counterSize: document.querySelector("#counterSize"),
-    counterSizeValue: document.querySelector("#counterSizeValue"),
-    counterMinus: document.querySelector("#counterMinus"),
-    counterPlus: document.querySelector("#counterPlus"),
     calculate: document.querySelector("#calculate"),
     calculateBottom: document.querySelector("#calculateBottom"),
     saveRecord: document.querySelector("#saveRecord"),
@@ -190,9 +179,7 @@
   let counterStream = null;
   let counterAnimationFrame = 0;
   let counterLastFrameAt = 0;
-  let counterStillSource = null;
   let counterBaseCount = 0;
-  let counterManualCorrection = 0;
   let counterCountHistory = [];
   const counterWorkCanvas = document.createElement("canvas");
 
@@ -390,13 +377,6 @@
   els.openPieceCounter.addEventListener("click", openPieceCounter);
   els.counterClose.addEventListener("click", closePieceCounter);
   els.counterSheet.querySelector("[data-counter-close]").addEventListener("click", closePieceCounter);
-  els.counterCapture.addEventListener("click", captureCounterFrame);
-  els.counterRestart.addEventListener("click", startCounterCamera);
-  els.counterFile.addEventListener("change", handleCounterFile);
-  els.counterSensitivity.addEventListener("input", handleCounterSettingsChange);
-  els.counterSize.addEventListener("input", handleCounterSettingsChange);
-  els.counterMinus.addEventListener("click", () => adjustCounter(-1));
-  els.counterPlus.addEventListener("click", () => adjustCounter(1));
   els.saveRecord.addEventListener("click", saveDailyRecord);
   els.loadRecord.addEventListener("click", openRecordLoader);
   els.recordClose.addEventListener("click", closeRecordLoader);
@@ -445,10 +425,7 @@
 
   async function openPieceCounter() {
     counterBaseCount = 0;
-    counterManualCorrection = 0;
     counterCountHistory = [];
-    counterStillSource = null;
-    updateCounterSettingsLabels();
     updateCounterCount();
     els.counterSheet.hidden = false;
     document.body.style.overflow = "hidden";
@@ -457,25 +434,17 @@
 
   function closePieceCounter() {
     stopCounterCamera();
-    releaseCounterStillSource();
     els.counterSheet.hidden = true;
-    els.counterFile.value = "";
     document.body.style.overflow = "";
   }
 
   async function startCounterCamera() {
     stopCounterCamera();
-    releaseCounterStillSource();
     counterCountHistory = [];
-    counterManualCorrection = 0;
     counterBaseCount = 0;
     updateCounterCount();
     setCounterEmpty("Spouštím fotoaparát…", "Povol přístup ke kameře.");
-    els.counterCapture.hidden = false;
-    els.counterCapture.disabled = true;
-    els.counterRestart.hidden = true;
     els.counterLiveBadge.hidden = true;
-    els.counterStatus.textContent = "Rozprostři rotorky tak, aby se vzájemně nedotýkaly.";
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       setCounterCameraUnavailable();
@@ -495,7 +464,6 @@
       await els.counterVideo.play();
       els.counterEmpty.hidden = true;
       els.counterLiveBadge.hidden = false;
-      els.counterCapture.disabled = false;
       counterLastFrameAt = 0;
       counterAnimationFrame = requestAnimationFrame(counterLiveLoop);
     } catch (error) {
@@ -507,13 +475,10 @@
     stopCounterCamera();
     setCounterEmpty(
       permissionDenied ? "Fotoaparát nebyl povolen" : "Kameru tady nejde otevřít",
-      "Použij tlačítko Vybrat fotku. Na mobilu nabídne také vyfocení."
+      permissionDenied
+        ? "Povol přístup ke kameře a otevři Počítadlo znovu."
+        : "Otevři Výkoňák přímo v prohlížeči; vložené okno může kameru blokovat."
     );
-    els.counterStatus.textContent = permissionDenied
-      ? "Přístup ke kameře můžeš povolit v nastavení prohlížeče."
-      : "Vložené okno může kameru blokovat, fotografie ale funguje stejně.";
-    els.counterCapture.disabled = true;
-    els.counterRestart.hidden = false;
   }
 
   function setCounterEmpty(title, text) {
@@ -542,110 +507,16 @@
     if (!counterStream || els.counterSheet.hidden) return;
     if (time - counterLastFrameAt > 260 && els.counterVideo.readyState >= 2) {
       counterLastFrameAt = time;
-      analyseCounterSource(els.counterVideo, true);
+      analyseCounterSource(els.counterVideo);
     }
     counterAnimationFrame = requestAnimationFrame(counterLiveLoop);
   }
 
-  function captureCounterFrame() {
-    if (!counterStream || els.counterVideo.readyState < 2) return;
-    const snapshot = document.createElement("canvas");
-    snapshot.width = els.counterVideo.videoWidth;
-    snapshot.height = els.counterVideo.videoHeight;
-    snapshot.getContext("2d").drawImage(els.counterVideo, 0, 0);
-    stopCounterCamera();
-    releaseCounterStillSource();
-    counterStillSource = snapshot;
-    counterManualCorrection = 0;
-    counterCountHistory = [];
-    els.counterCapture.hidden = true;
-    els.counterRestart.hidden = false;
-    els.counterEmpty.hidden = true;
-    els.counterStatus.textContent = "Zkontroluj zelené značky. Počet můžeš opravit tlačítky − a +.";
-    analyseCounterSource(counterStillSource, false);
-  }
-
-  async function handleCounterFile(event) {
-    const file = event.target.files && event.target.files[0];
-    if (!file) return;
-    event.target.value = "";
-    stopCounterCamera();
-    releaseCounterStillSource();
-    counterManualCorrection = 0;
-    counterCountHistory = [];
-    setCounterEmpty("Načítám fotografii…", file.name);
-    try {
-      counterStillSource = await decodeCounterFile(file);
-      els.counterEmpty.hidden = true;
-      els.counterCapture.hidden = true;
-      els.counterRestart.hidden = false;
-      els.counterStatus.textContent = "Zkontroluj zelené značky. Počet můžeš opravit tlačítky − a +.";
-      analyseCounterSource(counterStillSource, false);
-    } catch (error) {
-      setCounterEmpty("Fotku se nepodařilo načíst", "Zkus ji vyfotit znovu.");
-    }
-  }
-
-  async function decodeCounterFile(file) {
-    if (!("createImageBitmap" in window)) return loadCounterImage(file);
-    try {
-      return await createImageBitmap(file, { imageOrientation: "from-image" });
-    } catch (error) {
-      try {
-        return await createImageBitmap(file);
-      } catch (fallbackError) {
-        return loadCounterImage(file);
-      }
-    }
-  }
-
-  function loadCounterImage(file) {
-    return new Promise((resolve, reject) => {
-      const image = new Image();
-      const url = URL.createObjectURL(file);
-      image.onload = () => {
-        URL.revokeObjectURL(url);
-        resolve(image);
-      };
-      image.onerror = () => {
-        URL.revokeObjectURL(url);
-        reject(new Error("image-load-failed"));
-      };
-      image.src = url;
-    });
-  }
-
-  function releaseCounterStillSource() {
-    if (counterStillSource && typeof counterStillSource.close === "function") {
-      counterStillSource.close();
-    }
-    counterStillSource = null;
-  }
-
-  function handleCounterSettingsChange() {
-    updateCounterSettingsLabels();
-    counterCountHistory = [];
-    counterManualCorrection = 0;
-    if (counterStillSource) analyseCounterSource(counterStillSource, false);
-  }
-
-  function updateCounterSettingsLabels() {
-    els.counterSensitivityValue.textContent = els.counterSensitivity.value;
-    els.counterSizeValue.textContent = els.counterSize.value;
-  }
-
-  function adjustCounter(delta) {
-    counterManualCorrection = Math.max(-counterBaseCount, counterManualCorrection + delta);
-    updateCounterCount();
-  }
-
   function updateCounterCount() {
-    const count = Math.max(0, counterBaseCount + counterManualCorrection);
-    els.counterCount.textContent = String(count);
-    els.counterCorrectedCount.textContent = `${count} ks`;
+    els.counterCount.textContent = String(Math.max(0, counterBaseCount));
   }
 
-  function analyseCounterSource(source, live) {
+  function analyseCounterSource(source) {
     const sourceWidth = source.videoWidth || source.naturalWidth || source.width;
     const sourceHeight = source.videoHeight || source.naturalHeight || source.height;
     if (!sourceWidth || !sourceHeight) return;
@@ -673,26 +544,16 @@
       pixels,
       analysisWidth,
       analysisHeight,
-      Number(els.counterSensitivity.value),
-      Number(els.counterSize.value)
+      55,
+      35
     );
 
     drawCounterComponents(outputContext, components, outputWidth / analysisWidth, outputHeight / analysisHeight);
     const detectedCount = components.length;
-    if (live) {
-      counterCountHistory.push(detectedCount);
-      if (counterCountHistory.length > 5) counterCountHistory.shift();
-      const sorted = [...counterCountHistory].sort((a, b) => a - b);
-      counterBaseCount = sorted[Math.floor(sorted.length / 2)] || 0;
-    } else {
-      counterBaseCount = detectedCount;
-      const componentAreas = components.map((component) => component.area).sort((a, b) => a - b);
-      const middleArea = componentAreas[Math.floor(componentAreas.length / 2)] || 0;
-      const likelyTouching = middleArea > 0 && componentAreas.some((area) => area > middleArea * 3.2);
-      els.counterStatus.textContent = likelyTouching
-        ? "Některé kusy se zřejmě dotýkají. Rozlož je dál od sebe a vyfoť znovu."
-        : "Zkontroluj zelené značky. Počet můžeš opravit tlačítky − a +.";
-    }
+    counterCountHistory.push(detectedCount);
+    if (counterCountHistory.length > 5) counterCountHistory.shift();
+    const sorted = [...counterCountHistory].sort((a, b) => a - b);
+    counterBaseCount = sorted[Math.floor(sorted.length / 2)] || 0;
     updateCounterCount();
   }
 

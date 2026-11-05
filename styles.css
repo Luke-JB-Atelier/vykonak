@@ -872,22 +872,9 @@ html {
   gap: 12px;
 }
 
-.counter-head > div {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  min-width: 0;
-}
-
 .counter-head strong {
   color: var(--strong);
   font-size: 1.15rem;
-}
-
-.counter-head > div span {
-  color: #477180;
-  font-size: 0.72rem;
-  font-weight: 800;
 }
 
 .counter-stage {
@@ -984,110 +971,6 @@ html {
   font-weight: 800;
 }
 
-.counter-status,
-.counter-privacy {
-  margin: 0;
-  color: #315866;
-  font-size: 0.8rem;
-  line-height: 1.35;
-}
-
-.counter-primary-actions {
-  display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
-  gap: 8px;
-}
-
-.counter-primary-actions > * {
-  min-width: 0;
-  min-height: 46px;
-}
-
-.counter-primary-actions .primary-button {
-  grid-row: span 2;
-}
-
-.counter-file-button,
-.counter-primary-actions .text-button {
-  display: grid;
-  place-items: center;
-  margin: 0;
-  padding: 7px 10px;
-  border: 1px solid #8eb9c7;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #075678;
-  font-size: 0.82rem;
-  font-weight: 900;
-  text-align: center;
-  cursor: pointer;
-}
-
-.counter-settings {
-  border: 1px solid #b8d4dc;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.62);
-}
-
-.counter-settings summary {
-  padding: 9px 11px;
-  color: #174f62;
-  font-size: 0.83rem;
-  font-weight: 900;
-  cursor: pointer;
-}
-
-.counter-settings label {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 5px 10px;
-  padding: 4px 11px 10px;
-  color: #315866;
-  font-size: 0.78rem;
-  font-weight: 800;
-}
-
-.counter-settings input[type="range"] {
-  grid-column: 1 / -1;
-  width: 100%;
-  min-height: 26px;
-  accent-color: #0f7896;
-}
-
-.counter-correction {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  color: #315866;
-  font-size: 0.8rem;
-  font-weight: 800;
-}
-
-.counter-correction > div {
-  display: grid;
-  grid-template-columns: 44px minmax(74px, auto) 44px;
-  align-items: center;
-  gap: 6px;
-}
-
-.counter-correction button {
-  width: 44px;
-  min-height: 44px;
-  border: 1px solid #96bdc9;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #075678;
-  font-size: 1.35rem;
-  font-weight: 900;
-}
-
-.counter-correction strong {
-  color: var(--strong);
-  text-align: center;
-}
-
 @media (max-width: 480px) {
   .counter-panel {
     gap: 8px;
@@ -1103,10 +986,6 @@ html {
   .counter-stage canvas,
   .counter-stage video {
     height: min(48vh, 390px);
-  }
-
-  .counter-primary-actions {
-    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
   }
 }
 
