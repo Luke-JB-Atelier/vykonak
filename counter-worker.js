@@ -1,5 +1,5 @@
 "use strict";
-importScripts("counter-engine.js?v=922");
+importScripts("counter-engine.js?v=923");
 self.onmessage = function (event) {
   const { pixels, width, height, sensitivity, size, calibration } = event.data;
   try {

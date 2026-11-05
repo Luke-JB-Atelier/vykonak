@@ -897,10 +897,15 @@ html {
 }
 
 .counter-stage canvas {
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.counter-stage video {
   position: absolute;
   inset: 0;
-  z-index: 1;
-  background: transparent;
+  opacity: 0;
   pointer-events: none;
 }
 
@@ -1060,6 +1065,12 @@ html {
 }
 
 .counter-calibration-hint {
+  position: absolute;
+  top: 48px;
+  left: 8px;
+  right: 8px;
+  z-index: 4;
+  pointer-events: none;
   padding: 8px 10px;
   border: 1px solid #c49b37;
   border-radius: 8px;

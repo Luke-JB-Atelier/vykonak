@@ -24,6 +24,53 @@
     return threshold;
   }
 
+  function calibrate(pixels, width, height, x, y, radius) {
+    if (!Number.isFinite(radius) || radius < 4 || radius > Math.min(width, height) * .2 ||
+        x - radius < 0 || y - radius < 0 || x + radius >= width || y + radius >= height) return null;
+    const samples = [];
+    // Sample the plastic interior, not the copper contacts outside its outline.
+    const inner = radius * .65;
+    for (let yy = Math.floor(y-inner); yy <= y+inner; yy++) {
+      for (let xx = Math.floor(x-inner); xx <= x+inner; xx++) {
+        if ((xx-x)**2 + (yy-y)**2 > inner**2) continue;
+        const i = (yy*width+xx)*4, r=pixels[i], g=pixels[i+1], b=pixels[i+2], sum=r+g+b;
+        if (sum < 60) continue;
+        samples.push({red:r/sum, green:g/sum, blue:b/sum, light:r*.299+g*.587+b*.114});
+      }
+    }
+    if (samples.length < 12) return null;
+    const color = {
+      red:median(samples.map(p=>p.red)), green:median(samples.map(p=>p.green)), blue:median(samples.map(p=>p.blue))
+    };
+    const background = [];
+    const histogram = new Uint32Array(256);
+    for (let yy=0; yy<height; yy++) for (let xx=0; xx<width; xx++) {
+      const i=(yy*width+xx)*4, r=pixels[i], g=pixels[i+1], b=pixels[i+2], sum=r+g+b;
+      histogram[Math.floor(r*.299+g*.587+b*.114)]++;
+      const distance=(xx-x)**2+(yy-y)**2;
+      if (sum>=60 && distance>(radius*1.5)**2 && distance<(radius*2)**2) {
+        background.push({red:r/sum,green:g/sum,blue:b/sum,light:r*.299+g*.587+b*.114});
+      }
+    }
+    const backgroundColor = {
+      red:median(background.map(p=>p.red)), green:median(background.map(p=>p.green)), blue:median(background.map(p=>p.blue))
+    };
+    const backgroundDistinct = background.length >= 12 &&
+      Math.hypot(color.red-backgroundColor.red,color.green-backgroundColor.green,color.blue-backgroundColor.blue) > .02;
+    const sampleLight=median(samples.map(p=>p.light)), backgroundLight=median(background.map(p=>p.light));
+    const deviations = samples.map(p=>Math.hypot(p.red-color.red,p.green-color.green,p.blue-color.blue)).sort((a,b)=>a-b);
+    return {
+      color,
+      tolerance:Math.max(.035,Math.min(.05,deviations[Math.floor(deviations.length*.8)]+.008)),
+      backgroundColor:backgroundDistinct ? backgroundColor : null,
+      strongLightContrast:backgroundLight>0 && (sampleLight>backgroundLight*1.6 || sampleLight<backgroundLight*.65),
+      darkerThanBackground:sampleLight <= brightnessThreshold(histogram,width*height),
+      minimumLight:14,
+      sampleLight,
+      expectedWidth:radius*2, expectedHeight:radius*2, expectedArea:Math.PI*radius*radius
+    };
+  }
+
   function detect(pixels, width, height, sensitivity = 55, size = 35, calibration = null) {
     const total = width * height;
     if (!total || pixels.length !== total * 4) return [];
@@ -44,19 +91,26 @@
         const dg = g / sum - calibration.color.green;
         const db = b / sum - calibration.color.blue;
         matches = sum >= 50 && light >= calibration.minimumLight &&
-          dr * dr + dg * dg + db * db <= calibration.tolerance ** 2;
+          dr * dr + dg * dg + db * db <= (calibration.tolerance * (1 + (sensitivity-55)/150)) ** 2;
+        if (matches && calibration.backgroundColor) {
+          const bg=calibration.backgroundColor;
+          matches = dr*dr+dg*dg+db*db < ((r/sum-bg.red)**2+(g/sum-bg.green)**2+(b/sum-bg.blue)**2)*.9;
+        }
       } else {
         matches = light >= minimumLight && r - g <= -2 + sensitivity * .16 && g - b <= 16 + sensitivity * .32;
       }
       if (matches) { mask[i] = 1; occupied++; }
     }
 
-    // Neutral dark upholstery can satisfy the plastic colour test over nearly
-    // the whole image. Separate brightness classes only in that situation.
-    if (occupied > total * .25) {
+    // Remove a background that matches the colour over most of the image, or
+    // use the strong foreground/background contrast measured during calibration.
+    if (occupied > total * .25 || calibration?.strongLightContrast) {
       const threshold = brightnessThreshold(histogram, total);
-      if (threshold > minimumLight + 15) {
-        for (let i = 0; i < total; i++) if (lights[i] <= threshold) mask[i] = 0;
+      if (calibration || threshold > minimumLight + 15) {
+        const darker = calibration && calibration.darkerThanBackground;
+        for (let i = 0; i < total; i++) {
+          if (darker ? lights[i] > threshold : lights[i] <= threshold) mask[i] = 0;
+        }
       }
     }
 
@@ -103,12 +157,21 @@
       }
       const w = right - left + 1, h = bottom - top + 1;
       if (tail < minimumArea || tail > total * .16 || Math.min(w,h) < 5 || Math.max(w,h) / Math.min(w,h) > 3.1) continue;
+      if (calibration && tail / (w*h) < .3) continue;
       if ((left === 0 || right === width - 1) && (top === 0 || bottom === height - 1)) continue;
       components.push({x:left,y:top,width:w,height:h,area:tail,radius,peak,label});
     }
-    const typicalRadius = calibration
-      ? Math.max(3, Math.min(calibration.expectedWidth, calibration.expectedHeight) * .4)
-      : median(components.map(c => c.radius));
+    // Infer scale anew in every frame so moving the camera does not leave a
+    // fixed pixel-size calibration behind. The reference is a tie-breaker.
+    let typicalRadius = median(components.map(c => c.radius));
+    if (calibration && components.length > 1) {
+      const reference = Math.min(calibration.expectedWidth,calibration.expectedHeight)*.45;
+      const groups = components.map(c=>{
+        const radii=components.filter(other=>other.radius>=c.radius*.6 && other.radius<=c.radius*1.65).map(other=>other.radius);
+        return {radius:median(radii),support:radii.length};
+      }).sort((a,b)=>b.support-a.support || Math.abs(Math.log(a.radius/reference))-Math.abs(Math.log(b.radius/reference)));
+      typicalRadius = groups[0].radius;
+    }
     const result = [];
     for (const component of components) {
       const peaks = [];
@@ -151,6 +214,7 @@
       }
       if (!selected.length) selected.push({x:component.peak%width,y:(component.peak/width)|0,score:component.radius});
       for (const peak of selected) {
+        if (calibration && (peak.score < typicalRadius * .4 || peak.score > typicalRadius * 2.3)) continue;
         const diameter = Math.max(8, peak.score * 2);
         result.push({x:peak.x-diameter/2,y:peak.y-diameter/2,width:diameter,height:diameter,centerX:peak.x,centerY:peak.y,area:component.area/selected.length,weight:1});
       }
@@ -183,7 +247,7 @@
     return d;
   }
 
-  const api={detect};
+  const api={detect,calibrate};
   if (typeof module !== 'undefined' && module.exports) module.exports=api;
   else root.CounterDetector=api;
 })(typeof self !== 'undefined' ? self : globalThis);

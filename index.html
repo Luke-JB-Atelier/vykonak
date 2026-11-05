@@ -8,10 +8,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Výkoňák">
     <title>Výkoňák</title>
-    <link rel="manifest" href="manifest.webmanifest?v=922">
+    <link rel="manifest" href="manifest.webmanifest?v=923">
     <link rel="icon" href="icon-192.png">
     <link rel="apple-touch-icon" href="icon-192.png">
-    <link rel="stylesheet" href="styles.css?v=922">
+    <link rel="stylesheet" href="styles.css?v=923">
   </head>
   <body>
     <div class="app-shell">
@@ -23,7 +23,7 @@
           <button class="topbar-clear-button" id="resetApp" type="button">Vymazat údaje</button>
         </div>
         <div class="topbar-actions">
-          <span class="app-version">v9.22</span>
+          <span class="app-version">v9.23</span>
           <div class="company-mark" aria-label="SOLEA výrobní družstvo">
             <strong>SOLEA</strong>
             <span>výrobní družstvo</span>
@@ -466,7 +466,7 @@
         </div>
 
         <div class="counter-stage" id="counterStage">
-          <video id="counterVideo" playsinline muted></video>
+          <video id="counterVideo" playsinline muted aria-hidden="true"></video>
           <canvas id="counterCanvas" aria-label="Obraz kamery s označenými kusy"></canvas>
           <div class="counter-empty" id="counterEmpty">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -477,6 +477,7 @@
             <span id="counterEmptyText">Povol přístup ke kameře.</span>
           </div>
           <div class="counter-live-badge" id="counterLiveBadge" hidden>Živě</div>
+          <div class="counter-calibration-hint" id="counterCalibrationHint" aria-live="polite" hidden></div>
           <div class="counter-count" aria-live="polite">
             <strong id="counterCount">0</strong>
             <span>kusů</span>
@@ -506,8 +507,7 @@
             <span>Oddělit pozadí a spojené kusy <small>zkušební</small></span>
           </label>
           <p class="counter-privacy" id="counterNotice">Počet je odhad. Zkontroluj značky; jiné světlé předměty mohou být započítané.</p>
-          <button class="counter-calibrate" id="counterCalibrate" type="button" disabled>Zkusit automaticky (volitelné)</button>
-          <div class="counter-calibration-hint" id="counterCalibrationHint" hidden>Klepni doprostřed samostatného rotorku položeného naplocho</div>
+          <button class="counter-calibrate" id="counterCalibrate" type="button" disabled>Kalibrovat podle jednoho kusu</button>
           <div class="counter-correction">
             <span>Ruční oprava počtu</span>
             <div>
@@ -516,7 +516,7 @@
               <button type="button" id="counterPlus" aria-label="Přidat jeden kus">+</button>
             </div>
           </div>
-          <p class="counter-privacy">Používá se pouze živý obraz. Nic se nefotí ani neukládá.</p>
+          <p class="counter-privacy">Obraz a počet se obnovují společně po každém měření. Video se zpracovává jen v paměti telefonu, bez ukládání a odesílání.</p>
         </div>
       </section>
     </div>
@@ -592,6 +592,7 @@
       </section>
     </div>
 
-    <script src="app.js?v=922" defer></script>
+    <script src="counter-engine.js?v=923" defer></script>
+    <script src="app.js?v=923" defer></script>
   </body>
 </html>
