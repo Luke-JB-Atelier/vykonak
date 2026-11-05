@@ -417,9 +417,71 @@ select {
   background-color: rgba(248, 251, 252, 0.92);
 }
 
-.box-transfer-source {
+.product-card label .pieces-input-shell {
+  position: relative;
+  display: block;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip: auto;
+  margin: 0;
+  color: inherit;
+  font-size: inherit;
+}
+
+.product-grid .pieces-input-shell [data-field="pieces"] {
+  width: 100%;
+  padding-right: 54px;
+}
+
+.product-card .box-transfer-handle {
+  position: absolute;
+  z-index: 3;
+  top: 50%;
+  right: 5px;
+  width: 42px;
+  min-width: 42px;
+  min-height: 44px;
+  padding: 0;
+  translate: 0 -50%;
+  border: 2px solid rgba(255, 255, 255, 0.86);
+  border-radius: 8px;
+  background: #0c6685;
+  box-shadow: 0 3px 8px rgba(15, 23, 42, 0.2);
+  color: #ffffff;
   cursor: grab;
+  font-size: 1.55rem;
+  font-weight: 900;
+  line-height: 1;
   touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.product-card .box-transfer-handle > span {
+  position: static;
+  display: inline;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip: auto;
+  margin: 0;
+  color: inherit;
+  font: inherit;
+}
+
+.product-card .box-transfer-handle:active {
+  cursor: grabbing;
+  background: #084d66;
+}
+
+.product-card .box-transfer-handle:disabled {
+  border-color: rgba(255, 255, 255, 0.5);
+  background: #91a6ae;
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 0.66;
 }
 
 .product-card.box-transfer-active {
@@ -447,6 +509,20 @@ select {
   font-size: 1rem;
   font-weight: 900;
   white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .product-grid .pieces-input-shell [data-field="pieces"] {
+    padding-right: 45px;
+  }
+
+  .product-card .box-transfer-handle {
+    right: 3px;
+    width: 38px;
+    min-width: 38px;
+    min-height: 46px;
+    font-size: 1.4rem;
+  }
 }
 
 /* Make the native dropdown choices visually clearer where the platform permits it. */

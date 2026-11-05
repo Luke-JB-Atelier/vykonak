@@ -655,11 +655,12 @@
       const noteField = node.querySelector(".product-note");
       const breakdown = node.querySelector(".product-breakdown");
       const piecesInput = node.querySelector('[data-field="pieces"]');
+      const transferHandle = node.querySelector(".box-transfer-handle");
       const noteOpen = Boolean(product.noteOpen || product.note);
       noteField.hidden = !noteOpen;
       noteToggle.classList.toggle("is-active", noteOpen);
       updateProductBreakdown(product, breakdown);
-      enableBoxTransfer(piecesInput, product);
+      enableBoxTransfer(transferHandle, product);
 
       node.addEventListener("input", (event) => {
         const field = event.target.dataset.field;
@@ -678,6 +679,7 @@
           }
           fillProductInfoPieces(product, field === "noteType");
           if (field === "pieces") setInput(node, "noteType", product.noteType || "");
+          if (field === "pieces") updateBoxTransferHandle(transferHandle, product);
         }
         if (field === "notePieces" || field === "unfinishedPieces") {
           balanceProductPartials(product, field);
@@ -714,16 +716,14 @@
     });
   }
 
-  function enableBoxTransfer(input, sourceProduct) {
-    let holdTimer = 0;
+  function enableBoxTransfer(handle, sourceProduct) {
     let activePointer = null;
     let transferActive = false;
     let ghost = null;
     let targetCard = null;
     const boxSize = productBoxPieces(sourceProduct);
 
-    input.classList.add("box-transfer-source");
-    input.title = `Podrž a přetáhni do jiné výroby: přesune se ${boxSize} ks`;
+    updateBoxTransferHandle(handle, sourceProduct);
 
     const clearTarget = () => {
       targetCard?.classList.remove("box-transfer-target");
@@ -731,40 +731,36 @@
     };
 
     const finish = (event, shouldTransfer) => {
-      window.clearTimeout(holdTimer);
-      holdTimer = 0;
       const targetProduct = transferActive && shouldTransfer && targetCard
         ? state.products.find((item) => item.id === targetCard.dataset.productId)
         : null;
       clearTarget();
       ghost?.remove();
       ghost = null;
-      input.closest(".product-card")?.classList.remove("box-transfer-active");
+      handle.closest(".product-card")?.classList.remove("box-transfer-active");
       transferActive = false;
       activePointer = null;
-      if (input.hasPointerCapture?.(event.pointerId)) input.releasePointerCapture(event.pointerId);
+      if (handle.hasPointerCapture?.(event.pointerId)) handle.releasePointerCapture(event.pointerId);
       if (targetProduct) transferOneBox(sourceProduct, targetProduct, boxSize);
     };
 
-    input.addEventListener("pointerdown", (event) => {
+    handle.addEventListener("pointerdown", (event) => {
       if (event.button !== undefined && event.button !== 0) return;
       if (numberOrZero(sourceProduct.pieces) < boxSize) return;
+      event.preventDefault();
       activePointer = event.pointerId;
-      holdTimer = window.setTimeout(() => {
-        if (activePointer !== event.pointerId) return;
-        transferActive = true;
-        input.setPointerCapture?.(event.pointerId);
-        input.closest(".product-card")?.classList.add("box-transfer-active");
-        ghost = document.createElement("div");
-        ghost.className = "box-transfer-ghost";
-        ghost.textContent = `${boxSize} ks`;
-        document.body.append(ghost);
-        positionTransferGhost(ghost, event.clientX, event.clientY);
-        navigator.vibrate?.(35);
-      }, 420);
+      transferActive = true;
+      handle.setPointerCapture?.(event.pointerId);
+      handle.closest(".product-card")?.classList.add("box-transfer-active");
+      ghost = document.createElement("div");
+      ghost.className = "box-transfer-ghost";
+      ghost.textContent = `${boxSize} ks`;
+      document.body.append(ghost);
+      positionTransferGhost(ghost, event.clientX, event.clientY);
+      navigator.vibrate?.(35);
     });
 
-    input.addEventListener("pointermove", (event) => {
+    handle.addEventListener("pointermove", (event) => {
       if (!transferActive || event.pointerId !== activePointer) return;
       event.preventDefault();
       positionTransferGhost(ghost, event.clientX, event.clientY);
@@ -776,16 +772,24 @@
       }
     });
 
-    input.addEventListener("pointerup", (event) => {
+    handle.addEventListener("pointerup", (event) => {
       finish(event, transferActive);
     });
-    input.addEventListener("pointercancel", (event) => finish(event, false));
-    input.addEventListener("lostpointercapture", (event) => {
+    handle.addEventListener("pointercancel", (event) => finish(event, false));
+    handle.addEventListener("lostpointercapture", (event) => {
       if (activePointer === event.pointerId) finish(event, false);
     });
-    input.addEventListener("contextmenu", (event) => {
-      if (transferActive) event.preventDefault();
-    });
+    handle.addEventListener("contextmenu", (event) => event.preventDefault());
+  }
+
+  function updateBoxTransferHandle(handle, product) {
+    const boxSize = productBoxPieces(product);
+    const available = numberOrZero(product.pieces) >= boxSize;
+    handle.disabled = !available;
+    handle.title = available
+      ? `Přetáhni jednu bednu (${boxSize} ks) do jiné výroby`
+      : `K přesunu je potřeba alespoň ${boxSize} ks`;
+    handle.setAttribute("aria-label", handle.title);
   }
 
   function positionTransferGhost(ghost, x, y) {
