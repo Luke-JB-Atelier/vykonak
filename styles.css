@@ -945,6 +945,56 @@ html {
   display: none;
 }
 
+.counter-calibrate {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  z-index: 2;
+  min-height: 42px;
+  padding: 7px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 8px;
+  background: rgba(5, 39, 52, 0.88);
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.counter-calibrate.is-active {
+  border-color: #ffd36a;
+  background: #86600b;
+}
+
+.counter-calibrate.is-calibrated {
+  border-color: #72efac;
+  background: rgba(7, 91, 58, 0.92);
+}
+
+.counter-calibration-hint {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  z-index: 2;
+  max-width: calc(100% - 150px);
+  padding: 6px 10px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: rgba(134, 96, 11, 0.94);
+  color: #ffffff;
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-align: center;
+}
+
+.counter-calibration-hint[hidden] {
+  display: none;
+}
+
+.counter-stage.is-calibrating canvas {
+  cursor: crosshair;
+  touch-action: none;
+}
+
 .counter-count {
   position: absolute;
   right: 10px;

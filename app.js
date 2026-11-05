@@ -148,10 +148,13 @@
     counterClose: document.querySelector("#counterClose"),
     counterVideo: document.querySelector("#counterVideo"),
     counterCanvas: document.querySelector("#counterCanvas"),
+    counterStage: document.querySelector("#counterStage"),
     counterEmpty: document.querySelector("#counterEmpty"),
     counterEmptyTitle: document.querySelector("#counterEmptyTitle"),
     counterEmptyText: document.querySelector("#counterEmptyText"),
     counterLiveBadge: document.querySelector("#counterLiveBadge"),
+    counterCalibrate: document.querySelector("#counterCalibrate"),
+    counterCalibrationHint: document.querySelector("#counterCalibrationHint"),
     counterCount: document.querySelector("#counterCount"),
     calculate: document.querySelector("#calculate"),
     calculateBottom: document.querySelector("#calculateBottom"),
@@ -181,6 +184,10 @@
   let counterLastFrameAt = 0;
   let counterBaseCount = 0;
   let counterCountHistory = [];
+  let counterCalibration = null;
+  let counterCalibrationMode = false;
+  let counterLatestFrame = null;
+  let counterCalibrationPoint = null;
   const counterWorkCanvas = document.createElement("canvas");
 
   document.querySelector("#addPerson").addEventListener("click", () => {
@@ -377,6 +384,8 @@
   els.openPieceCounter.addEventListener("click", openPieceCounter);
   els.counterClose.addEventListener("click", closePieceCounter);
   els.counterSheet.querySelector("[data-counter-close]").addEventListener("click", closePieceCounter);
+  els.counterCalibrate.addEventListener("click", toggleCounterCalibration);
+  els.counterCanvas.addEventListener("pointerdown", handleCounterCalibrationTap);
   els.saveRecord.addEventListener("click", saveDailyRecord);
   els.loadRecord.addEventListener("click", openRecordLoader);
   els.recordClose.addEventListener("click", closeRecordLoader);
@@ -426,6 +435,10 @@
   async function openPieceCounter() {
     counterBaseCount = 0;
     counterCountHistory = [];
+    counterCalibration = null;
+    counterLatestFrame = null;
+    setCounterCalibrationMode(false);
+    updateCounterCalibrationButton();
     updateCounterCount();
     els.counterSheet.hidden = false;
     document.body.style.overflow = "hidden";
@@ -434,6 +447,8 @@
 
   function closePieceCounter() {
     stopCounterCamera();
+    counterLatestFrame = null;
+    setCounterCalibrationMode(false);
     els.counterSheet.hidden = true;
     document.body.style.overflow = "";
   }
@@ -445,6 +460,7 @@
     updateCounterCount();
     setCounterEmpty("Spouštím fotoaparát…", "Povol přístup ke kameře.");
     els.counterLiveBadge.hidden = true;
+    els.counterCalibrate.hidden = true;
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       setCounterCameraUnavailable();
@@ -461,9 +477,11 @@
         audio: false
       });
       els.counterVideo.srcObject = counterStream;
+      tuneCounterCamera(counterStream.getVideoTracks()[0]);
       await els.counterVideo.play();
       els.counterEmpty.hidden = true;
       els.counterLiveBadge.hidden = false;
+      els.counterCalibrate.hidden = false;
       counterLastFrameAt = 0;
       counterAnimationFrame = requestAnimationFrame(counterLiveLoop);
     } catch (error) {
@@ -479,6 +497,20 @@
         ? "Povol přístup ke kameře a otevři Počítadlo znovu."
         : "Otevři Výkoňák přímo v prohlížeči; vložené okno může kameru blokovat."
     );
+    els.counterCalibrate.hidden = true;
+  }
+
+  async function tuneCounterCamera(track) {
+    if (!track || typeof track.getCapabilities !== "function" || typeof track.applyConstraints !== "function") return;
+    try {
+      const capabilities = track.getCapabilities();
+      const exposure = capabilities && capabilities.exposureCompensation;
+      if (!exposure || typeof exposure.min !== "number" || typeof exposure.max !== "number") return;
+      const darkerExposure = Math.max(exposure.min, Math.min(exposure.max, -1));
+      await track.applyConstraints({ advanced: [{ exposureCompensation: darkerExposure }] });
+    } catch (error) {
+      // Camera exposure controls are optional. Canvas contrast still applies.
+    }
   }
 
   function setCounterEmpty(title, text) {
@@ -512,6 +544,197 @@
     counterAnimationFrame = requestAnimationFrame(counterLiveLoop);
   }
 
+  function toggleCounterCalibration() {
+    if (!counterLatestFrame) return;
+    setCounterCalibrationMode(!counterCalibrationMode);
+  }
+
+  function setCounterCalibrationMode(active) {
+    counterCalibrationMode = Boolean(active);
+    els.counterStage.classList.toggle("is-calibrating", counterCalibrationMode);
+    els.counterCalibrationHint.hidden = !counterCalibrationMode;
+    updateCounterCalibrationButton();
+  }
+
+  function updateCounterCalibrationButton() {
+    els.counterCalibrate.classList.toggle("is-active", counterCalibrationMode);
+    els.counterCalibrate.classList.toggle("is-calibrated", Boolean(counterCalibration) && !counterCalibrationMode);
+    els.counterCalibrate.textContent = counterCalibrationMode
+      ? "Zrušit"
+      : counterCalibration
+        ? "Kalibrováno"
+        : "Kalibrovat";
+  }
+
+  function handleCounterCalibrationTap(event) {
+    if (!counterCalibrationMode || !counterLatestFrame) return;
+    event.preventDefault();
+    const rect = els.counterCanvas.getBoundingClientRect();
+    const contentScale = Math.min(rect.width / els.counterCanvas.width, rect.height / els.counterCanvas.height);
+    const contentWidth = els.counterCanvas.width * contentScale;
+    const contentHeight = els.counterCanvas.height * contentScale;
+    const offsetX = (rect.width - contentWidth) / 2;
+    const offsetY = (rect.height - contentHeight) / 2;
+    const canvasX = (event.clientX - rect.left - offsetX) / contentScale;
+    const canvasY = (event.clientY - rect.top - offsetY) / contentScale;
+    if (canvasX < 0 || canvasY < 0 || canvasX > els.counterCanvas.width || canvasY > els.counterCanvas.height) return;
+
+    const frameX = Math.round(canvasX * counterLatestFrame.width / els.counterCanvas.width);
+    const frameY = Math.round(canvasY * counterLatestFrame.height / els.counterCanvas.height);
+    const calibration = calibrateCounterFromPoint(counterLatestFrame, frameX, frameY);
+    if (!calibration) {
+      els.counterCalibrationHint.textContent = "Netrefil ses na samostatný rotorek — zkus to znovu";
+      return;
+    }
+
+    counterCalibration = calibration;
+    counterCountHistory = [];
+    counterCalibrationPoint = {
+      x: canvasX,
+      y: canvasY,
+      until: performance.now() + 1400
+    };
+    els.counterCalibrationHint.textContent = "Klepni doprostřed samostatného rotorku položeného naplocho";
+    setCounterCalibrationMode(false);
+  }
+
+  function calibrateCounterFromPoint(frame, centerX, centerY) {
+    const samples = [];
+    const patchRadius = 6;
+    for (let y = Math.max(0, centerY - patchRadius); y <= Math.min(frame.height - 1, centerY + patchRadius); y += 1) {
+      for (let x = Math.max(0, centerX - patchRadius); x <= Math.min(frame.width - 1, centerX + patchRadius); x += 1) {
+        if (Math.hypot(x - centerX, y - centerY) > patchRadius) continue;
+        const pixel = (y * frame.width + x) * 4;
+        const red = frame.pixels[pixel];
+        const green = frame.pixels[pixel + 1];
+        const blue = frame.pixels[pixel + 2];
+        const sum = red + green + blue;
+        const light = red * 0.299 + green * 0.587 + blue * 0.114;
+        if (sum < 80 || light < 28) continue;
+        samples.push({ red: red / sum, green: green / sum, blue: blue / sum, light });
+      }
+    }
+    if (samples.length < 12) return null;
+
+    const color = {
+      red: median(samples.map((sample) => sample.red)),
+      green: median(samples.map((sample) => sample.green)),
+      blue: median(samples.map((sample) => sample.blue))
+    };
+    const sampleDistances = samples
+      .map((sample) => colorDistance(sample.red, sample.green, sample.blue, color))
+      .sort((a, b) => a - b);
+    const tolerance = clampNumber(sampleDistances[Math.floor(sampleDistances.length * 0.82)] + 0.009, 0.026, 0.04);
+    const light = median(samples.map((sample) => sample.light));
+    const measured = measureCalibratedPiece(frame, centerX, centerY, color, tolerance, light);
+    if (!measured || measured.area < 30) return null;
+    const maximumPieceSize = frame.width * 0.26;
+    if (
+      Math.max(measured.width, measured.height) > maximumPieceSize ||
+      Math.min(measured.width, measured.height) < 7 ||
+      color.green < color.red - 0.015 ||
+      color.green - color.blue < 0.012
+    ) {
+      return null;
+    }
+
+    return {
+      color,
+      tolerance,
+      minimumLight: Math.max(24, light * 0.3),
+      expectedArea: measured.area,
+      expectedWidth: measured.width,
+      expectedHeight: measured.height
+    };
+  }
+
+  function measureCalibratedPiece(frame, centerX, centerY, color, tolerance, sampleLight) {
+    const matches = (x, y) => {
+      if (x < 0 || y < 0 || x >= frame.width || y >= frame.height) return false;
+      const pixel = (y * frame.width + x) * 4;
+      const red = frame.pixels[pixel];
+      const green = frame.pixels[pixel + 1];
+      const blue = frame.pixels[pixel + 2];
+      const sum = red + green + blue;
+      if (sum < 50) return false;
+      const light = red * 0.299 + green * 0.587 + blue * 0.114;
+      if (light < Math.max(20, sampleLight * 0.28)) return false;
+      return colorDistance(red / sum, green / sum, blue / sum, color) <= Math.max(0.028, tolerance * 1.25);
+    };
+
+    let seedX = centerX;
+    let seedY = centerY;
+    if (!matches(seedX, seedY)) {
+      let found = false;
+      for (let radius = 1; radius <= 10 && !found; radius += 1) {
+        for (let y = centerY - radius; y <= centerY + radius && !found; y += 1) {
+          for (let x = centerX - radius; x <= centerX + radius; x += 1) {
+            if (!matches(x, y)) continue;
+            seedX = x;
+            seedY = y;
+            found = true;
+            break;
+          }
+        }
+      }
+      if (!found) return null;
+    }
+
+    const total = frame.width * frame.height;
+    const visited = new Uint8Array(total);
+    const stack = new Int32Array(total);
+    let stackSize = 1;
+    let area = 0;
+    let minimumX = frame.width;
+    let minimumY = frame.height;
+    let maximumX = 0;
+    let maximumY = 0;
+    const seed = seedY * frame.width + seedX;
+    stack[0] = seed;
+    visited[seed] = 1;
+
+    while (stackSize) {
+      const current = stack[--stackSize];
+      const x = current % frame.width;
+      const y = (current / frame.width) | 0;
+      area += 1;
+      minimumX = Math.min(minimumX, x);
+      minimumY = Math.min(minimumY, y);
+      maximumX = Math.max(maximumX, x);
+      maximumY = Math.max(maximumY, y);
+      for (let yOffset = -1; yOffset <= 1; yOffset += 1) {
+        for (let xOffset = -1; xOffset <= 1; xOffset += 1) {
+          if (!xOffset && !yOffset) continue;
+          const nextX = x + xOffset;
+          const nextY = y + yOffset;
+          if (!matches(nextX, nextY)) continue;
+          const next = nextY * frame.width + nextX;
+          if (visited[next]) continue;
+          visited[next] = 1;
+          stack[stackSize++] = next;
+        }
+      }
+      if (area > total * 0.08) return null;
+    }
+
+    return {
+      area,
+      width: maximumX - minimumX + 1,
+      height: maximumY - minimumY + 1
+    };
+  }
+
+  function colorDistance(red, green, blue, target) {
+    return Math.hypot(red - target.red, green - target.green, blue - target.blue);
+  }
+
+  function median(values) {
+    if (!values.length) return 0;
+    const sorted = [...values].sort((a, b) => a - b);
+    const middle = Math.floor(sorted.length / 2);
+    return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+  }
+
   function updateCounterCount() {
     els.counterCount.textContent = String(Math.max(0, counterBaseCount));
   }
@@ -530,7 +753,10 @@
       output.height = outputHeight;
     }
     const outputContext = output.getContext("2d", { alpha: false });
+    outputContext.save();
+    outputContext.filter = "brightness(0.82) contrast(1.18) saturate(0.9)";
     outputContext.drawImage(source, 0, 0, outputWidth, outputHeight);
+    outputContext.restore();
 
     const analysisScale = Math.min(1, 420 / Math.max(sourceWidth, sourceHeight));
     const analysisWidth = Math.max(1, Math.round(sourceWidth * analysisScale));
@@ -540,16 +766,23 @@
     const workContext = counterWorkCanvas.getContext("2d", { willReadFrequently: true });
     workContext.drawImage(source, 0, 0, analysisWidth, analysisHeight);
     const pixels = workContext.getImageData(0, 0, analysisWidth, analysisHeight).data;
+    counterLatestFrame = { pixels, width: analysisWidth, height: analysisHeight };
     const components = findCounterComponents(
       pixels,
       analysisWidth,
       analysisHeight,
       55,
-      35
+      35,
+      counterCalibration
     );
 
     drawCounterComponents(outputContext, components, outputWidth / analysisWidth, outputHeight / analysisHeight);
-    const detectedCount = components.length;
+    if (counterCalibrationPoint && counterCalibrationPoint.until > performance.now()) {
+      drawCounterCalibrationPoint(outputContext, counterCalibrationPoint);
+    } else {
+      counterCalibrationPoint = null;
+    }
+    const detectedCount = components.reduce((sum, component) => sum + (component.weight || 1), 0);
     counterCountHistory.push(detectedCount);
     if (counterCountHistory.length > 5) counterCountHistory.shift();
     const sorted = [...counterCountHistory].sort((a, b) => a - b);
@@ -557,7 +790,7 @@
     updateCounterCount();
   }
 
-  function findCounterComponents(pixels, width, height, sensitivity, sizeSetting) {
+  function findCounterComponents(pixels, width, height, sensitivity, sizeSetting, calibration = null) {
     const total = width * height;
     // The plastic is neutral to slightly green. Warm wood remains outside the
     // mask even in shadow, where a simple brightness threshold would fail.
@@ -571,21 +804,34 @@
       const green = pixels[pixel + 1];
       const blue = pixels[pixel + 2];
       const light = red * 0.299 + green * 0.587 + blue * 0.114;
-      const redExcess = red - green;
-      const greenBlueGap = green - blue;
-      if (
-        light >= minimumLight &&
-        redExcess <= maximumRedExcess &&
-        greenBlueGap <= maximumGreenBlueGap
-      ) {
-        mask[index] = 1;
+      if (calibration) {
+        const sum = red + green + blue;
+        if (
+          sum >= 50 &&
+          light >= calibration.minimumLight &&
+          colorDistance(red / sum, green / sum, blue / sum, calibration.color) <= calibration.tolerance
+        ) {
+          mask[index] = 1;
+        }
+      } else {
+        const redExcess = red - green;
+        const greenBlueGap = green - blue;
+        if (
+          light >= minimumLight &&
+          redExcess <= maximumRedExcess &&
+          greenBlueGap <= maximumGreenBlueGap
+        ) {
+          mask[index] = 1;
+        }
       }
     }
 
     const visited = new Uint8Array(total);
     const stack = new Int32Array(total);
-    const minimumArea = Math.max(8, Math.round(total * (0.00005 + sizeSetting * 0.0000082)));
-    const maximumArea = total * 0.16;
+    const minimumArea = calibration
+      ? Math.max(8, calibration.expectedArea * 0.12)
+      : Math.max(8, Math.round(total * (0.00005 + sizeSetting * 0.0000082)));
+    const maximumArea = calibration ? total * 0.55 : total * 0.16;
     const components = [];
 
     for (let start = 0; start < total; start += 1) {
@@ -648,11 +894,96 @@
         fill >= 0.13 &&
         !touchesTwoEdges
       ) {
-        components.push({ x: minimumX, y: minimumY, width: boxWidth, height: boxHeight, area });
+        components.push({ x: minimumX, y: minimumY, width: boxWidth, height: boxHeight, area, weight: 1 });
       }
     }
 
-    return mergeCounterFragments(components);
+    const merged = mergeCounterFragments(components);
+    if (calibration && calibration.expectedArea > 0) {
+      return splitCalibratedComponents(mask, width, height, calibration, merged);
+    }
+    return merged;
+  }
+
+  function splitCalibratedComponents(mask, width, height, calibration, components) {
+    const total = width * height;
+    const distance = new Float32Array(total);
+    const diagonal = Math.SQRT2;
+    for (let index = 0; index < total; index += 1) distance[index] = mask[index] ? 10000 : 0;
+
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const index = y * width + x;
+        if (!mask[index]) continue;
+        let value = distance[index];
+        if (x > 0) value = Math.min(value, distance[index - 1] + 1);
+        if (y > 0) value = Math.min(value, distance[index - width] + 1);
+        if (x > 0 && y > 0) value = Math.min(value, distance[index - width - 1] + diagonal);
+        if (x + 1 < width && y > 0) value = Math.min(value, distance[index - width + 1] + diagonal);
+        distance[index] = value;
+      }
+    }
+    for (let y = height - 1; y >= 0; y -= 1) {
+      for (let x = width - 1; x >= 0; x -= 1) {
+        const index = y * width + x;
+        if (!mask[index]) continue;
+        let value = distance[index];
+        if (x + 1 < width) value = Math.min(value, distance[index + 1] + 1);
+        if (y + 1 < height) value = Math.min(value, distance[index + width] + 1);
+        if (x + 1 < width && y + 1 < height) value = Math.min(value, distance[index + width + 1] + diagonal);
+        if (x > 0 && y + 1 < height) value = Math.min(value, distance[index + width - 1] + diagonal);
+        distance[index] = value;
+      }
+    }
+
+    const expectedDiameter = Math.max(8, Math.max(calibration.expectedWidth, calibration.expectedHeight));
+    const minimumPeak = Math.max(2, expectedDiameter * 0.115);
+    const maximumPeak = Math.max(minimumPeak + 1, expectedDiameter * 0.42);
+    const localRadius = Math.max(1, Math.round(expectedDiameter * 0.13));
+    const candidates = [];
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const index = y * width + x;
+        const value = distance[index];
+        if (value < minimumPeak || value > maximumPeak) continue;
+        let localMaximum = true;
+        for (let yOffset = -localRadius; yOffset <= localRadius && localMaximum; yOffset += 1) {
+          const checkY = y + yOffset;
+          if (checkY < 0 || checkY >= height) continue;
+          for (let xOffset = -localRadius; xOffset <= localRadius; xOffset += 1) {
+            const checkX = x + xOffset;
+            if (checkX < 0 || checkX >= width) continue;
+            if (distance[checkY * width + checkX] > value + 0.01) {
+              localMaximum = false;
+              break;
+            }
+          }
+        }
+        if (localMaximum) candidates.push({ x, y, score: value });
+      }
+    }
+
+    candidates.sort((a, b) => b.score - a.score);
+    const minimumSpacing = expectedDiameter * 0.47;
+    const selected = [];
+    candidates.forEach((candidate) => {
+      if (selected.some((peak) => Math.hypot(candidate.x - peak.x, candidate.y - peak.y) < minimumSpacing)) return;
+      selected.push(candidate);
+    });
+
+    const markerSize = Math.max(8, expectedDiameter * 0.72);
+    const markers = selected.map((peak) => ({
+      x: peak.x - markerSize / 2,
+      y: peak.y - markerSize / 2,
+      width: markerSize,
+      height: markerSize,
+      area: Math.PI * (markerSize / 2) ** 2,
+      weight: 1,
+      centerX: peak.x,
+      centerY: peak.y
+    }));
+
+    return markers;
   }
 
   function mergeCounterFragments(components) {
@@ -695,8 +1026,8 @@
     context.textAlign = "center";
     context.textBaseline = "middle";
     components.forEach((component, index) => {
-      const centerX = (component.x + component.width / 2) * scaleX;
-      const centerY = (component.y + component.height / 2) * scaleY;
+      const centerX = (component.centerX ?? (component.x + component.width / 2)) * scaleX;
+      const centerY = (component.centerY ?? (component.y + component.height / 2)) * scaleY;
       const radiusX = component.width * scaleX * 0.58 + 4;
       const radiusY = component.height * scaleY * 0.58 + 4;
       context.beginPath();
@@ -707,9 +1038,25 @@
       context.arc(centerX, centerY, labelRadius, 0, Math.PI * 2);
       context.fill();
       context.fillStyle = "#ffffff";
-      context.fillText(String(index + 1), centerX, centerY + 0.5);
+      context.fillText(component.weight > 1 ? `×${component.weight}` : String(index + 1), centerX, centerY + 0.5);
       context.fillStyle = "rgba(4, 41, 53, 0.88)";
     });
+    context.restore();
+  }
+
+  function drawCounterCalibrationPoint(context, point) {
+    context.save();
+    context.strokeStyle = "#ffd45c";
+    context.lineWidth = 4;
+    context.beginPath();
+    context.arc(point.x, point.y, 22, 0, Math.PI * 2);
+    context.stroke();
+    context.beginPath();
+    context.moveTo(point.x - 30, point.y);
+    context.lineTo(point.x + 30, point.y);
+    context.moveTo(point.x, point.y - 30);
+    context.lineTo(point.x, point.y + 30);
+    context.stroke();
     context.restore();
   }
 
