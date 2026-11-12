@@ -8,10 +8,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Výkoňák">
     <title>Výkoňák</title>
-    <link rel="manifest" href="manifest.webmanifest?v=926">
+    <link rel="manifest" href="manifest.webmanifest?v=927">
     <link rel="icon" href="icon-192.png">
     <link rel="apple-touch-icon" href="icon-192.png">
-    <link rel="stylesheet" href="styles.css?v=926">
+    <link rel="stylesheet" href="styles.css?v=927">
   </head>
   <body>
     <div class="app-shell">
@@ -23,7 +23,7 @@
           <button class="topbar-clear-button" id="resetApp" type="button">Vymazat údaje</button>
         </div>
         <div class="topbar-actions">
-          <span class="app-version">v9.26</span>
+          <span class="app-version">v9.27</span>
           <div class="company-mark" aria-label="SOLEA výrobní družstvo">
             <strong>SOLEA</strong>
             <span>výrobní družstvo</span>
@@ -510,6 +510,16 @@
               <small class="counter-setting-help" id="counterSizeHelp">Začni na 35. Vyšší hodnota vynechá menší tvary.</small>
             </label>
           </div>
+          <label class="counter-resolution">
+            <span>Rozlišení kamery</span>
+            <select id="counterResolution" aria-describedby="counterResolutionHelp">
+              <option value="light">Úsporné (800 × 600)</option>
+              <option value="balanced" selected>Vyvážené (1280 × 960)</option>
+              <option value="detail">Detailní (1920 × 1440)</option>
+            </select>
+            <small id="counterResolutionHelp">Změna rozlišení spustí měření znovu.</small>
+            <output id="counterResolutionActual" aria-live="polite"></output>
+          </label>
           <label class="counter-separate">
             <input type="checkbox" id="counterSeparate" aria-describedby="counterNotice">
             <span>Oddělit pozadí a spojené kusy <small>zkušební</small></span>
@@ -600,7 +610,7 @@
       </section>
     </div>
 
-    <script src="counter-engine.js?v=926" defer></script>
-    <script src="app.js?v=926" defer></script>
+    <script src="counter-engine.js?v=927" defer></script>
+    <script src="app.js?v=927" defer></script>
   </body>
 </html>

@@ -102,6 +102,30 @@
     return Number(b.strong) - Number(a.strong) || b.rimSupport - a.rimSupport;
   }
 
+  function distinctBottoms(hits, reference = null) {
+    const distinct = [];
+    const rank = hit => hit.rimSupport - (reference === null ? 0 : 32 * Math.abs(Math.log(hit.radius / reference)));
+    for (const hit of hits.slice().sort((a, b) => Number(b.strong) - Number(a.strong) || rank(b) - rank(a))) {
+      if (!distinct.some(other => bottomsOverlap(hit, other))) distinct.push(hit);
+    }
+    return distinct;
+  }
+
+  function typicalRadius(hits) {
+    const strong = hits.filter(hit => hit.strong);
+    const positions = distinctBottoms(strong);
+    if (positions.length < 3) return null;
+    const middle = percentile(positions.map(hit => hit.radius), .5);
+    const matching = distinctBottoms(strong.filter(hit => hit.radius >= .8 * middle && hit.radius <= 1.2 * middle));
+    return matching.length >= 3 && matching.length >= positions.length / 2
+      ? percentile(matching.map(hit => hit.radius), .5) : null;
+  }
+
+  function fitsGroup(radius, typical) {
+    // The rim of a tilted bottom looks smaller, especially near the image edge.
+    return typical === null || (radius >= .69 * typical && radius <= 1.35 * typical);
+  }
+
   function trackFrame(cv, previous, current) {
     const points = new cv.Mat(), forward = new cv.Mat(), back = new cv.Mat();
     const found = new cv.Mat(), returned = new cv.Mat(), error = new cv.Mat();
@@ -197,7 +221,10 @@
         for (let i = 0; i + 2 < data.length; i += 3) {
           const hit = { x: data[i] + x0, y: data[i + 1] + y0, radius: data[i + 2] };
           if (cv.pointPolygonTest(polygon, new cv.Point(hit.x, hit.y), false) < 0) continue;
-          const existing = hits.findIndex(other => closeTo(hit, other));
+          // Keep inner and outer fits of different sizes until the group scale
+          // can help decide which boundary best represents the whole bottom.
+          const existing = hits.findIndex(other => closeTo(hit, other) &&
+            Math.min(hit.radius, other.radius) >= .8 * Math.max(hit.radius, other.radius));
           if (existing !== -1 && hits[existing].rimSupport === 64) continue;
           const evidence = cavityEvidence(cv, gray, hit);
           if (!evidence) continue;
@@ -218,6 +245,12 @@
       this.transform = [1, 0, 0, 0, 1, 0, 0, 0, 1];
       this.tracks = [];
       this.count = 0;
+    }
+
+    selectBottoms(hits) {
+      const known = this.tracks.filter(track => track.confirmed).map(track => ({ ...track.center, strong: true }));
+      const reference = typicalRadius(known) ?? typicalRadius(hits);
+      return distinctBottoms(hits.filter(hit => fitsGroup(hit.radius, reference)), reference);
     }
 
     observe(hits, inverse, width, height, time) {
@@ -298,12 +331,11 @@
         const radius = Math.max(width, height) * radiusRatio * scale;
         const low = Math.max(5, Math.round(.65 * radius));
         const high = Math.max(low + 1, Math.round(1.33 * radius));
-        const hits = findBottoms(cv, gray, region, low, high, sensitivity);
-        const distinct = [];
-        for (const hit of hits.sort(compareRims)) {
-          const anchored = { ...hit, ...project(hit, transform), radius: hit.radius / scale };
-          if (!distinct.some(other => bottomsOverlap(anchored, other))) distinct.push(anchored);
-        }
+        const hits = findBottoms(cv, gray, region, low, high, sensitivity).map(hit => {
+          const localScale = Math.sqrt(areaScale(hit, transform));
+          return { ...hit, ...project(hit, transform), radius: hit.radius * localScale };
+        }).filter(hit => Number.isFinite(hit.x) && Number.isFinite(hit.y) && Number.isFinite(hit.radius));
+        const distinct = this.selectBottoms(hits);
         this.observe(distinct, inverse, width, height, time);
         this.transform = transform;
         if (!this.reference) this.reference = gray.clone();
@@ -312,7 +344,8 @@
         gray = null;
         const components = this.tracks.filter(track => track.confirmed && track.visible).map(track => {
           const { x, y } = project(track.center, inverse);
-          const radius = track.center.radius * scale;
+          const localScale = Math.sqrt(areaScale(track.center, inverse));
+          const radius = track.center.radius * (Number.isFinite(localScale) && localScale > 0 ? localScale : scale);
           return { centerX: x, centerY: y, width: 2 * radius, height: 2 * radius, label: track.number };
         });
         return { components, count: this.count, aligned: true, region, detected: distinct.length };

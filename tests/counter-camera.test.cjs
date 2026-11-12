@@ -13,11 +13,15 @@ test('sweep mode starts in a worker, holds the count, and resets for a new group
     await page.addInitScript(()=>{
       window.sweepShift=0;
       window.sweepPieces=3;
-      navigator.mediaDevices.getUserMedia=async()=>{
+      window.sweepCameraRequests=[];
+      navigator.mediaDevices.getUserMedia=async constraints=>{
+        window.sweepCameraRequests.push(constraints.video);
         const source=document.createElement('canvas');
-        source.width=640;
-        source.height=480;
+        const detail=constraints.video.width.ideal===1920;
+        source.width=detail?1600:640;
+        source.height=detail?1200:480;
         const ctx=source.getContext('2d');
+        if(detail)ctx.scale(2.5,2.5);
         const circle=(x,y,r,value)=>{
           ctx.fillStyle=`rgb(${value},${value},${value})`;
           ctx.beginPath();
@@ -46,6 +50,10 @@ test('sweep mode starts in a worker, holds the count, and resets for a new group
     });
     await page.goto(process.env.COUNTER_BASE_URL);
     await page.locator('#openPieceCounter').click();
+    await page.waitForFunction(()=>document.querySelector('#counterResolutionActual').textContent.includes('640 × 480'));
+    assert.deepEqual(await page.evaluate(()=>window.sweepCameraRequests[0]),{
+      facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:960},aspectRatio:{ideal:4/3},frameRate:{ideal:30}
+    });
     assert.equal(await page.locator('#counterSweep').isChecked(),false);
     assert.ok(!requests.some(request=>request.url().includes('opencv-')));
     await page.locator('#counterSweep').check();
@@ -62,11 +70,25 @@ test('sweep mode starts in a worker, holds the count, and resets for a new group
     assert.equal(await page.locator('#counterCount').textContent(),'3');
     await page.locator('#counterSweepReset').click();
     await page.waitForFunction(()=>document.querySelector('#counterCount').textContent==='0');
+    await page.evaluate(()=>{window.previousSweepStream=window.sweepTestStream;});
+    await page.locator('#counterResolution').selectOption('light');
+    await page.waitForFunction(()=>window.sweepCameraRequests.length===2);
+    await page.waitForFunction(()=>document.querySelector('#counterResolutionActual').textContent.includes('640 × 480'));
+    assert.deepEqual(await page.evaluate(()=>window.sweepCameraRequests[1]),{
+      facingMode:{ideal:'environment'},width:{ideal:800},height:{ideal:600},aspectRatio:{ideal:4/3},frameRate:{ideal:24}
+    });
+    assert.equal(await page.evaluate(()=>window.previousSweepStream.getVideoTracks()[0].readyState),'ended');
+    assert.equal(await page.locator('#counterCount').textContent(),'0');
+    await page.locator('#counterResolution').selectOption('detail');
+    await page.waitForFunction(()=>document.querySelector('#counterResolutionActual').textContent.includes('1600 × 1200'));
+    await page.waitForFunction(()=>document.querySelector('#counterCanvas').width===1280);
     await page.locator('#counterClose').click();
     assert.equal(await page.evaluate(()=>window.sweepTestStream.getVideoTracks()[0].readyState),'ended');
     assert.deepEqual(errors,[]);
     assert.ok(requests.some(request=>request.url().includes('vendor/opencv-4.13.0.js')));
     assert.ok(requests.every(request=>request.method()==='GET' && new URL(request.url()).origin===new URL(process.env.COUNTER_BASE_URL).origin));
+    await page.reload();
+    assert.equal(await page.locator('#counterResolution').inputValue(),'detail');
   } finally { await browser.close(); }
 });
 

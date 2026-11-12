@@ -3,6 +3,11 @@
   const RECORDS_KEY = "vykonak-denni-zaznamy-v1";
   const CALC_VIBRATION_KEY = "vykonak-calculator-vibration";
   const COUNTER_SETTINGS_KEY = "vykonak-counter-settings-v1";
+  const COUNTER_CAMERA_PRESETS = {
+    light: { width: 800, height: 600, frameRate: 24, analysis: 800 },
+    balanced: { width: 1280, height: 960, frameRate: 30, analysis: 960 },
+    detail: { width: 1920, height: 1440, frameRate: 30, analysis: 1280 }
+  };
   const DEFAULT_RATE = 45;
   const DEFAULT_HOURS = 6;
   const DEFAULT_PRODUCTION_COLOR = "blue";
@@ -162,6 +167,8 @@
     counterSweepReset: document.querySelector("#counterSweepReset"),
     counterSizeLabel: document.querySelector("#counterSizeLabel"),
     counterSizeHelp: document.querySelector("#counterSizeHelp"),
+    counterResolution: document.querySelector("#counterResolution"),
+    counterResolutionActual: document.querySelector("#counterResolutionActual"),
     counterSeparate: document.querySelector("#counterSeparate"),
     counterNotice: document.querySelector("#counterNotice"),
     counterSensitivity: document.querySelector("#counterSensitivity"),
@@ -418,6 +425,8 @@
   els.counterSeparate?.addEventListener("change", handleCounterSettingsChange);
   els.counterSweep?.addEventListener("change", restartCounterSweep);
   els.counterSweepReset?.addEventListener("click", restartCounterSweep);
+  els.counterResolution.addEventListener("change", changeCounterResolution);
+  els.counterVideo.addEventListener("resize", updateCounterResolutionActual);
   els.counterMinus?.addEventListener("click", () => adjustCounter(-1));
   els.counterPlus?.addEventListener("click", () => adjustCounter(1));
   els.saveRecord.addEventListener("click", saveDailyRecord);
@@ -462,7 +471,7 @@
     });
     window.addEventListener("load", () => {
       navigator.serviceWorker
-        .register("sw.js?v=926", { updateViaCache: "none" })
+        .register("sw.js?v=927", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
       updateInstallButtons();
@@ -517,11 +526,14 @@
     }
 
     try {
+      const { width, height, frameRate } = COUNTER_CAMERA_PRESETS[els.counterResolution.value];
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: "environment" },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
+          width: { ideal: width },
+          height: { ideal: height },
+          aspectRatio: { ideal: 4 / 3 },
+          frameRate: { ideal: frameRate }
         },
         audio: false
       });
@@ -535,6 +547,7 @@
       if (generation !== counterCameraGeneration || els.counterSheet.hidden) return;
       els.counterEmpty.hidden = true;
       els.counterLiveBadge.hidden = false;
+      updateCounterResolutionActual();
       updateCounterCalibrationButton();
       counterLastFrameAt = 0;
       counterAnimationFrame = requestAnimationFrame(counterLiveLoop);
@@ -580,6 +593,7 @@
     els.counterVideo.pause();
     els.counterVideo.srcObject = null;
     els.counterLiveBadge.hidden = true;
+    els.counterResolutionActual.textContent = "";
     counterLatestFrame = null;
     counterPendingFrame = null;
     counterLastVideoTime = -1;
@@ -733,6 +747,7 @@
       if (saved) {
         els.counterSensitivity.value = String(clampNumber(saved.sensitivity, 20, 90));
         els.counterSize.value = String(clampNumber(saved.size, 10, 100));
+        if (Object.hasOwn(COUNTER_CAMERA_PRESETS, saved.resolution)) els.counterResolution.value = saved.resolution;
       }
     } catch {
       // Invalid local settings fall back to the proven 55 / 35 defaults.
@@ -752,15 +767,35 @@
       setCounterCalibrationMode(false);
     }
     updateCounterSettingsLabels();
+    saveCounterSettings();
+    updateCounterCount();
+  }
+
+  function saveCounterSettings() {
     try {
       localStorage.setItem(COUNTER_SETTINGS_KEY, JSON.stringify({
         sensitivity: Number(els.counterSensitivity.value),
-        size: Number(els.counterSize.value)
+        size: Number(els.counterSize.value),
+        resolution: els.counterResolution.value
       }));
     } catch {
       // The controls still work when local storage is unavailable.
     }
-    updateCounterCount();
+  }
+
+  function changeCounterResolution() {
+    saveCounterSettings();
+    if (els.counterSheet.hidden) return;
+    counterCalibration = null;
+    counterSweepRadius = null;
+    restartCounterSweep();
+    void startCounterCamera();
+  }
+
+  function updateCounterResolutionActual() {
+    const { videoWidth, videoHeight } = els.counterVideo;
+    if (!counterStream || !videoWidth || !videoHeight) return;
+    els.counterResolutionActual.textContent = `Obraz z kamery ${videoWidth} × ${videoHeight} px`;
   }
 
   function updateCounterSettingsLabels() {
@@ -783,7 +818,9 @@
     const sourceHeight = source.videoHeight || source.naturalHeight || source.height;
     if (!sourceWidth || !sourceHeight) return;
 
-    const outputScale = Math.min(1, 960 / Math.max(sourceWidth, sourceHeight));
+    const sweep = els.counterSweep.checked;
+    const outputLimit = sweep ? COUNTER_CAMERA_PRESETS[els.counterResolution.value].analysis : 960;
+    const outputScale = Math.min(1, outputLimit / Math.max(sourceWidth, sourceHeight));
     const outputWidth = Math.max(1, Math.round(sourceWidth * outputScale));
     const outputHeight = Math.max(1, Math.round(sourceHeight * outputScale));
     if (counterFrameCanvas.width !== outputWidth || counterFrameCanvas.height !== outputHeight) {
@@ -791,18 +828,21 @@
       counterFrameCanvas.height = outputHeight;
     }
     // Keep the exact analysed frame until its markers and count are ready.
-    counterFrameCanvas.getContext("2d").drawImage(source, 0, 0, outputWidth, outputHeight);
-    const sweep = els.counterSweep.checked;
-    const analysisScale = Math.min(1, (sweep ? 960 : 420) / Math.max(sourceWidth, sourceHeight));
+    const frameContext = counterFrameCanvas.getContext("2d", { willReadFrequently: true });
+    frameContext.drawImage(source, 0, 0, outputWidth, outputHeight);
+    const analysisScale = sweep ? outputScale : Math.min(1, 420 / Math.max(sourceWidth, sourceHeight));
     const analysisWidth = Math.max(1, Math.round(sourceWidth * analysisScale));
     const analysisHeight = Math.max(1, Math.round(sourceHeight * analysisScale));
-    if (counterWorkCanvas.width !== analysisWidth || counterWorkCanvas.height !== analysisHeight) {
-      counterWorkCanvas.width = analysisWidth;
-      counterWorkCanvas.height = analysisHeight;
+    let analysisContext = frameContext;
+    if (analysisWidth !== outputWidth || analysisHeight !== outputHeight) {
+      if (counterWorkCanvas.width !== analysisWidth || counterWorkCanvas.height !== analysisHeight) {
+        counterWorkCanvas.width = analysisWidth;
+        counterWorkCanvas.height = analysisHeight;
+      }
+      analysisContext = counterWorkCanvas.getContext("2d", { willReadFrequently: true });
+      analysisContext.drawImage(counterFrameCanvas, 0, 0, analysisWidth, analysisHeight);
     }
-    const workContext = counterWorkCanvas.getContext("2d", { willReadFrequently: true });
-    workContext.drawImage(counterFrameCanvas, 0, 0, analysisWidth, analysisHeight);
-    const pixels = workContext.getImageData(0, 0, analysisWidth, analysisHeight).data;
+    const pixels = analysisContext.getImageData(0, 0, analysisWidth, analysisHeight).data;
     counterPendingFrame = { pixels, width: analysisWidth, height: analysisHeight, time: performance.now() };
     if (sweep || els.counterSeparate?.checked) {
       requestCounterDetection(counterPendingFrame);
@@ -846,7 +886,7 @@
     }
     try {
       if (!counterDetectorWorker) {
-        const worker = new Worker("counter-worker.js?v=926");
+        const worker = new Worker("counter-worker.js?v=927");
         counterDetectorWorker = worker;
         worker.onmessage = ({data}) => {
           if (counterDetectorWorker !== worker) return;
@@ -1048,8 +1088,11 @@
     components.forEach((component, index) => {
       const centerX = (component.centerX ?? (component.x + component.width / 2)) * scaleX;
       const centerY = (component.centerY ?? (component.y + component.height / 2)) * scaleY;
-      const radiusX = component.width * scaleX * 0.58 + 4;
-      const radiusY = component.height * scaleY * 0.58 + 4;
+      const sweepMarker = component.label !== undefined;
+      const padding = sweepMarker ? 0 : 4;
+      const radiusFactor = sweepMarker ? 0.5 : 0.58;
+      const radiusX = component.width * scaleX * radiusFactor + padding;
+      const radiusY = component.height * scaleY * radiusFactor + padding;
       context.beginPath();
       context.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2);
       context.stroke();

@@ -48,6 +48,22 @@ test('deep overlap favors the stronger rim and still counts a touching neighbor'
   assert.equal(counter.count, 2);
 });
 
+test('group size rejects an inner ring and an oversized gap while retaining a tilted bottom', () => {
+  const counter = new CounterSweep();
+  const bottom = { x: 140, y: 300, radius: 30, strong: true, rimSupport: 56 };
+  const hits = [
+    { ...bottom, x: 142, radius: 16, rimSupport: 64 },
+    bottom,
+    { ...bottom, x: 193, radius: 29 },
+    { ...bottom, x: 246, radius: 31 },
+    { ...bottom, x: 295, radius: 22 },
+    { ...bottom, x: 360, radius: 45 },
+    { ...bottom, x: 445, radius: 15 }
+  ];
+  assert.deepEqual(counter.selectBottoms(hits).map(hit => hit.x).sort((a, b) => a - b), [140, 193, 246, 295]);
+  assert.deepEqual(counter.selectBottoms([hits.at(-1)]), [hits.at(-1)]);
+});
+
 test('stays at 11 in a generated sweep with glare, a cast shadow and an unalignable frame', { timeout: 20000 }, async () => {
   const { cv } = await loadOpenCv();
   const width = 540, height = 960;

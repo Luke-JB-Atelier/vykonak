@@ -1028,6 +1028,31 @@ html {
   font-weight: 600;
 }
 
+.counter-resolution {
+  display: grid;
+  gap: 4px;
+  padding: 10px 11px;
+  border: 1px solid #b8d4dc;
+  border-radius: 9px;
+  color: #315866;
+  background: rgba(255, 255, 255, 0.72);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.counter-resolution select {
+  width: 100%;
+  min-height: 44px;
+}
+
+.counter-resolution small,
+.counter-resolution output {
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.counter-resolution output:empty { display: none; }
+
 .counter-calibrate {
   width: 100%;
   min-height: 52px;
