@@ -1,22 +1,23 @@
 # Ověření počítadla
 
-Jádro: `node --test tests/counter-engine.test.cjs`.
-
-Zkušební přejezd: `node --test tests/counter-sweep.test.cjs`. Test ověřuje
+Přejezd: `node --test tests/counter-sweep.test.cjs`. Test ověřuje
 potvrzení pozice z více pohledů, dočasně chybějící detekci, opakovanou značku,
 simulovaný přepal, stín u spodku i v jeho dutině a zachování počtu při výpadku
 zarovnání.
 
 Přejezd používá oficiální sestavení [OpenCV.js 4.13.0](https://docs.opencv.org/4.13.0/opencv.js)
-z adresáře `vendor`. Worker je načítá při prvním použití tohoto režimu.
+z adresáře `vendor`. Worker je načítá při otevření počítadla.
 
 Pro test kamery spusť místní HTTP server, zpřístupni balíček Playwright v Node
 a nastav `COUNTER_BASE_URL` na adresu aplikace. Případně nastav `EDGE_PATH` na
 prohlížeč Chromium/Edge. Potom spusť `node --test tests/counter-camera.test.cjs`.
 Bez `COUNTER_BASE_URL` se test kamery přeskočí. Používá generovaný kamerový tok,
-včetně uměle pomalého workeru; nepotřebuje skutečnou kameru ani její oprávnění.
+včetně uměle pomalého workeru. Ověřuje živý obraz během výpočtu, jediný
+rozpracovaný snímek, kontrolu značek, kalibraci a přepnutí rozlišení.
 
-## Co zaručují testy verze 9.23
+## Výsledky dřívějšího počítadla z verze 9.23
+
+Pro jeho samostatné jádro je k dispozici `node --test tests/counter-engine.test.cjs`.
 
 - Výsledek a značky patří ke stejnému obrazu. Měření se neřadí do fronty.
 - Změna počtu nečeká na medián sedmi starších výsledků.
@@ -34,9 +35,7 @@ včetně uměle pomalého workeru; nepotřebuje skutečnou kameru ani její opr�
 
 Modelové testy neprokazují spolehlivé rozpoznání skutečných rotorků. Stále jde
 o barevnou a geometrickou heuristiku, nikoli naučený model plastového dílu.
-Kalibrace je volitelná, zkušební a může výsledek na některých podkladech zhoršit.
-Posuvníky a původní ruční režim zůstávají dostupné; vypnutí zkušebního režimu
-zruší vzor. Kalibrace se neukládá mezi otevřeními kamery.
+V tehdejší verzi byla volitelná barevná kalibrace a ruční režim.
 
 Místní kontrola šesti uživatelem dodaných ukázek (v každé 18 skutečných kusů),
 jedna předem vybraná kalibrace pro každou scénu, posuvníky 55/35:

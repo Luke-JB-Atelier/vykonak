@@ -899,13 +899,15 @@ html {
 .counter-stage canvas {
   position: relative;
   z-index: 1;
+  visibility: hidden;
   pointer-events: none;
 }
+
+.counter-stage.shows-snapshot canvas { visibility: visible; }
 
 .counter-stage video {
   position: absolute;
   inset: 0;
-  opacity: 0;
   pointer-events: none;
 }
 
@@ -961,6 +963,12 @@ html {
   gap: 7px;
 }
 
+.counter-sweep-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
 .counter-settings {
   display: grid;
   gap: 5px;
@@ -977,15 +985,6 @@ html {
   gap: 8px;
   color: #174f62;
   font-size: 0.86rem;
-}
-
-.counter-settings-title span {
-  padding: 3px 7px;
-  border-radius: 999px;
-  background: #d8edf3;
-  color: #17627a;
-  font-size: 0.7rem;
-  font-weight: 900;
 }
 
 .counter-settings label {
@@ -1064,22 +1063,6 @@ html {
   font-size: 1rem;
   font-weight: 900;
 }
-
-.counter-separate {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 44px;
-  padding: 8px 10px;
-  border: 1px solid #96bdc9;
-  border-radius: 8px;
-  color: #174f62;
-  font-size: 0.82rem;
-  font-weight: 800;
-}
-
-.counter-separate input { width: 22px; height: 22px; flex: 0 0 22px; }
-.counter-separate small { color: #715800; font-size: 0.72rem; }
 
 .counter-calibrate:disabled {
   border-color: #91aab3;

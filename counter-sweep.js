@@ -49,6 +49,10 @@
 
   function percentile(values, fraction) {
     values.sort((a, b) => a - b);
+    return sortedPercentile(values, fraction);
+  }
+
+  function sortedPercentile(values, fraction) {
     const index = (values.length - 1) * fraction;
     const low = Math.floor(index);
     return values[low] + (values[Math.ceil(index)] - values[low]) * (index - low);
@@ -171,33 +175,31 @@
     }
   }
 
-  function cavityEvidence(cv, gray, hit) {
-    const mapX = new cv.Mat(patchSize, patchSize, cv.CV_32FC1);
-    const mapY = new cv.Mat(patchSize, patchSize, cv.CV_32FC1);
-    const patch = new cv.Mat(), smooth = new cv.Mat(), gx = new cv.Mat(), gy = new cv.Mat();
-    try {
-      const horizontal = mapX.data32F, vertical = mapY.data32F;
-      for (let i = 0; i < sampleX.length; i++) {
-        horizontal[i] = hit.x + hit.radius * sampleX[i];
-        vertical[i] = hit.y + hit.radius * sampleY[i];
-      }
-      cv.remap(gray, patch, mapX, mapY, cv.INTER_LINEAR, cv.BORDER_REFLECT101);
-      const pixels = patch.data;
-      // A broad clipped center has no usable detail about the interior.
-      if (glare.filter(index => pixels[index] >= 249).length > .6 * glare.length) return null;
-      const evidence = rimEvidence(pixels);
-      if (!evidence) return null;
-      patch.convertTo(smooth, cv.CV_32F);
-      cv.GaussianBlur(smooth, smooth, new cv.Size(5, 5), .9);
-      cv.Sobel(smooth, gx, cv.CV_32F, 1, 0, 3, .125);
-      cv.Sobel(smooth, gy, cv.CV_32F, 0, 1, 3, .125);
-      const dx = gx.data32F, dy = gy.data32F;
-      const magnitude = index => Math.hypot(dx[index], dy[index]);
-      return percentile(interior.map(magnitude), .85) < 1.15 * Math.max(.8, percentile(rim.map(magnitude), .8))
-        ? evidence : null;
-    } finally {
-      mapX.delete(); mapY.delete(); patch.delete(); smooth.delete(); gx.delete(); gy.delete();
+  function cavityEvidence(cv, gray, hit, scratch) {
+    const { mapX, mapY, patch, smooth, gx, gy, innerGradient, rimGradient } = scratch;
+    const horizontal = mapX.data32F, vertical = mapY.data32F;
+    for (let i = 0; i < sampleX.length; i++) {
+      horizontal[i] = hit.x + hit.radius * sampleX[i];
+      vertical[i] = hit.y + hit.radius * sampleY[i];
     }
+    cv.remap(gray, patch, mapX, mapY, cv.INTER_LINEAR, cv.BORDER_REFLECT101);
+    const pixels = patch.data;
+    // A broad clipped center has no usable detail about the interior.
+    let clipped = 0;
+    for (const index of glare) if (pixels[index] >= 249 && ++clipped > .6 * glare.length) return null;
+    const evidence = rimEvidence(pixels);
+    if (!evidence) return null;
+    patch.convertTo(smooth, cv.CV_32F);
+    cv.GaussianBlur(smooth, smooth, new cv.Size(5, 5), .9);
+    cv.Sobel(smooth, gx, cv.CV_32F, 1, 0, 3, .125);
+    cv.Sobel(smooth, gy, cv.CV_32F, 0, 1, 3, .125);
+    const dx = gx.data32F, dy = gy.data32F;
+    for (let i = 0; i < interior.length; i++) innerGradient[i] = Math.hypot(dx[interior[i]], dy[interior[i]]);
+    for (let i = 0; i < rim.length; i++) rimGradient[i] = Math.hypot(dx[rim[i]], dy[rim[i]]);
+    innerGradient.sort();
+    rimGradient.sort();
+    return sortedPercentile(innerGradient, .85) < 1.15 * Math.max(.8, sortedPercentile(rimGradient, .8))
+      ? evidence : null;
   }
 
   function findBottoms(cv, gray, region, low, high, sensitivity) {
@@ -210,6 +212,12 @@
     const contrast = new cv.Mat(), smooth = new cv.Mat(), circles = new cv.Mat();
     const polygon = cv.matFromArray(region.length, 1, cv.CV_32FC2, region.flatMap(p => [p.x, p.y]));
     const clahe = new cv.CLAHE(2, new cv.Size(5, 5));
+    const cavityScratch = {
+      mapX: new cv.Mat(patchSize, patchSize, cv.CV_32FC1),
+      mapY: new cv.Mat(patchSize, patchSize, cv.CV_32FC1),
+      patch: new cv.Mat(), smooth: new cv.Mat(), gx: new cv.Mat(), gy: new cv.Mat(),
+      innerGradient: new Float64Array(interior.length), rimGradient: new Float64Array(rim.length)
+    };
     try {
       const hits = [];
       clahe.apply(crop, contrast);
@@ -226,7 +234,7 @@
           const existing = hits.findIndex(other => closeTo(hit, other) &&
             Math.min(hit.radius, other.radius) >= .8 * Math.max(hit.radius, other.radius));
           if (existing !== -1 && hits[existing].rimSupport === 64) continue;
-          const evidence = cavityEvidence(cv, gray, hit);
+          const evidence = cavityEvidence(cv, gray, hit, cavityScratch);
           if (!evidence) continue;
           const candidate = { ...hit, ...evidence };
           if (existing === -1) hits.push(candidate);
@@ -236,6 +244,8 @@
       return hits;
     } finally {
       crop.delete(); contrast.delete(); smooth.delete(); circles.delete(); polygon.delete(); clahe.delete();
+      cavityScratch.mapX.delete(); cavityScratch.mapY.delete(); cavityScratch.patch.delete();
+      cavityScratch.smooth.delete(); cavityScratch.gx.delete(); cavityScratch.gy.delete();
     }
   }
 

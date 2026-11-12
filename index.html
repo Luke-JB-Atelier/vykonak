@@ -8,10 +8,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Výkoňák">
     <title>Výkoňák</title>
-    <link rel="manifest" href="manifest.webmanifest?v=927">
+    <link rel="manifest" href="manifest.webmanifest?v=928">
     <link rel="icon" href="icon-192.png">
     <link rel="apple-touch-icon" href="icon-192.png">
-    <link rel="stylesheet" href="styles.css?v=927">
+    <link rel="stylesheet" href="styles.css?v=928">
   </head>
   <body>
     <div class="app-shell">
@@ -23,7 +23,7 @@
           <button class="topbar-clear-button" id="resetApp" type="button">Vymazat údaje</button>
         </div>
         <div class="topbar-actions">
-          <span class="app-version">v9.27</span>
+          <span class="app-version">v9.28</span>
           <div class="company-mark" aria-label="SOLEA výrobní družstvo">
             <strong>SOLEA</strong>
             <span>výrobní družstvo</span>
@@ -484,16 +484,14 @@
           </div>
         </div>
         <div class="counter-calibration-controls">
-          <label class="counter-separate">
-            <input type="checkbox" id="counterSweep" aria-describedby="counterSweepHint">
-            <span>Počítat spodky přejezdem</span>
-          </label>
-          <p class="counter-privacy" id="counterSweepHint" role="status" hidden></p>
-          <button class="counter-calibrate" id="counterSweepReset" type="button" hidden>Nový přejezd</button>
+          <p class="counter-privacy" id="counterSweepHint" role="status"></p>
+          <div class="counter-sweep-actions">
+            <button class="counter-calibrate" id="counterSweepReset" type="button">Nový přejezd</button>
+            <button class="counter-calibrate" id="counterReview" type="button" aria-pressed="false" disabled>Zkontrolovat značky</button>
+          </div>
           <div class="counter-settings">
             <div class="counter-settings-title">
               <strong>Ruční nastavení</strong>
-              <span id="counterMode">Aktivní</span>
             </div>
             <label>
               <span>Citlivost rozpoznání</span>
@@ -503,11 +501,11 @@
               <small class="counter-setting-help" id="counterSensitivityHelp">Začni na 55. Chybí kusy? Přidej trochu. Přibývají stíny? Uber.</small>
             </label>
             <label>
-              <span id="counterSizeLabel">Nejmenší velikost kusu</span>
+              <span>Velikost spodku</span>
               <output id="counterSizeValue">35</output>
               <input id="counterSize" type="range" min="10" max="100" value="35" aria-describedby="counterSizeHelp">
               <small><span>Menší</span><span>Větší</span></small>
-              <small class="counter-setting-help" id="counterSizeHelp">Začni na 35. Vyšší hodnota vynechá menší tvary.</small>
+              <small class="counter-setting-help" id="counterSizeHelp">Začni na 35. Blíž ke kameře přidej, dál uber. Změna zahájí nový přejezd.</small>
             </label>
           </div>
           <label class="counter-resolution">
@@ -520,11 +518,6 @@
             <small id="counterResolutionHelp">Změna rozlišení spustí měření znovu.</small>
             <output id="counterResolutionActual" aria-live="polite"></output>
           </label>
-          <label class="counter-separate">
-            <input type="checkbox" id="counterSeparate" aria-describedby="counterNotice">
-            <span>Oddělit pozadí a spojené kusy <small>zkušební</small></span>
-          </label>
-          <p class="counter-privacy" id="counterNotice">Počet je odhad. Zkontroluj značky; jiné světlé předměty mohou být započítané.</p>
           <button class="counter-calibrate" id="counterCalibrate" type="button" disabled>Kalibrovat podle jednoho kusu</button>
           <div class="counter-correction">
             <span>Ruční oprava počtu</span>
@@ -534,7 +527,7 @@
               <button type="button" id="counterPlus" aria-label="Přidat jeden kus">+</button>
             </div>
           </div>
-          <p class="counter-privacy">Obraz a počet se obnovují společně po každém měření. Video se zpracovává jen v paměti telefonu, bez ukládání a odesílání.</p>
+          <p class="counter-privacy">Počet se obnovuje po každém měření. Obraz se zpracovává v paměti telefonu bez ukládání a odesílání.</p>
         </div>
       </section>
     </div>
@@ -610,7 +603,6 @@
       </section>
     </div>
 
-    <script src="counter-engine.js?v=927" defer></script>
-    <script src="app.js?v=927" defer></script>
+    <script src="app.js?v=928" defer></script>
   </body>
 </html>
