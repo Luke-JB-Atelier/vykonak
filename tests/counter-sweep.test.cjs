@@ -1,11 +1,20 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-require('../counter-sweep.js');
+const { sweepRegion } = require('../counter-sweep.js');
 
 function loadOpenCv() {
   const module = require('../vendor/opencv-4.13.0.js');
   return new Promise((resolve, reject) => module.then(cv => resolve({ cv }), reject));
 }
+
+test('rejects a warped work area while allowing ordinary camera movement', () => {
+  assert.ok(sweepRegion(960, 720, [1, 0, 90, 0, 1, -20, 0, 0, 1]));
+  assert.ok(sweepRegion(960, 720, [1.05, 0, 20, .05, 1, 12, .0002, 0, 1]));
+  assert.equal(sweepRegion(960, 720, [1, 0, 0, 0, 1, 0, .002, 0, 1]), null);
+  assert.equal(sweepRegion(960, 720, [-1, 0, 960, 0, 1, 0, 0, 0, 1]), null);
+  const collapsed = [.56122, -.20216, 132.179, .02394, .09058, 231.291, .0000861, -.0007696, 1];
+  assert.equal(sweepRegion(960, 718, collapsed), null);
+});
 
 test('counts a confirmed position once across intermittent detections', () => {
   const counter = new CounterSweep();

@@ -221,6 +221,7 @@
   let counterDetectorWorker = null;
   let counterDetectionBusy = false;
   let counterDetectionFailed = false;
+  let counterInputSize = "";
   let counterDetectionTimer = null;
   let counterFrameCanvas = document.createElement("canvas");
   let counterMeasuredCanvas = document.createElement("canvas");
@@ -487,7 +488,7 @@
     });
     window.addEventListener("load", () => {
       navigator.serviceWorker
-        .register("sw.js?v=931", { updateViaCache: "none" })
+        .register("sw.js?v=932", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
       updateInstallButtons();
@@ -872,6 +873,9 @@
     const outputScale = Math.min(1, outputLimit / Math.max(sourceWidth, sourceHeight));
     const outputWidth = Math.max(1, Math.round(sourceWidth * outputScale));
     const outputHeight = Math.max(1, Math.round(sourceHeight * outputScale));
+    const inputSize = `${outputWidth}x${outputHeight}`;
+    if (counterInputSize && counterInputSize !== inputSize) restartCounterSweep();
+    counterInputSize = inputSize;
     if (counterFrameCanvas.width !== outputWidth || counterFrameCanvas.height !== outputHeight) {
       counterFrameCanvas.width = outputWidth;
       counterFrameCanvas.height = outputHeight;
@@ -888,6 +892,7 @@
     counterDetectorWorker = null;
     counterDetectionBusy = false;
     counterDetectionFailed = false;
+    counterInputSize = "";
     clearTimeout(counterDetectionTimer);
     counterDetectionTimer = null;
   }
@@ -900,7 +905,7 @@
     }
     try {
       if (!counterDetectorWorker) {
-        const worker = new Worker("counter-worker.js?v=931");
+        const worker = new Worker("counter-worker.js?v=932");
         counterDetectorWorker = worker;
         worker.onmessage = ({data}) => {
           if (counterDetectorWorker !== worker) return;
@@ -947,9 +952,9 @@
       counterLatestFrame = result;
       updateCounterCalibrationButton();
       if (!result.detected && !result.count) {
-        hint = "V záběru zatím žádný spodek. Kalibruj velikost podle jednoho kusu.";
+        hint = "V záběru zatím žádný spodek. Zkus Kalibrovat podle jednoho kusu.";
       } else {
-        const instruction = result.count ? "Přejížděj pomalu přes skupinu." : "Pohni kamerou pomalu do strany, aby se kusy potvrdily.";
+        const instruction = result.count ? "Přejížděj pomalu přes skupinu." : "Pro potvrzení pomalu posuň kameru do strany.";
         hint = `V záběru ${result.detected} možných spodků, potvrzeno ${result.count}. ${instruction}`;
       }
     }

@@ -88,6 +88,20 @@
     return ((right.x - origin.x) * (down.y - origin.y) - (right.y - origin.y) * (down.x - origin.x)) / 400;
   }
 
+  function sweepRegion(width, height, inverse) {
+    const corners = [[.07, .12], [.93, .12], [.93, .88], [.07, .88]];
+    const points = corners.map(([x, y]) => ({ x: x * width, y: y * height }));
+    const projected = points.map(point => project(point, inverse));
+    if (projected.some(point => !Number.isFinite(point.x) || !Number.isFinite(point.y))) return null;
+
+    // Check the local scale across the work area. A homography fitted to
+    // features on one side can fold or shrink the rest of the frame.
+    const areas = points.map(point => areaScale(point, inverse));
+    const smallest = Math.min(...areas), largest = Math.max(...areas);
+    if (!(smallest > .12 && largest < 7 && largest <= 4 * smallest)) return null;
+    return projected;
+  }
+
   function distance(a, b) {
     return Math.hypot(a.x - b.x, a.y - b.y);
   }
@@ -330,16 +344,18 @@
         let transform = this.transform;
         if (this.previous) {
           const relative = trackFrame(cv, this.previous, gray);
-          transform = relative ? multiply(transform, relative) : trackFrame(cv, this.reference, gray);
-          if (!transform) return paused;
+          transform = relative && multiply(transform, relative);
         }
-        const inverse = invert(transform);
-        if (!inverse) return paused;
+        let inverse = transform && invert(transform);
+        let region = inverse && sweepRegion(width, height, inverse);
+        if (!region && this.reference) {
+          transform = trackFrame(cv, this.reference, gray);
+          inverse = transform && invert(transform);
+          region = inverse && sweepRegion(width, height, inverse);
+        }
+        if (!region) return paused;
         const scale = Math.sqrt(areaScale({ x: width / 2, y: height / 2 }, inverse));
         if (!(scale >= .4 && scale <= 2.5)) return paused;
-        const region = [[.07, .12], [.93, .12], [.93, .88], [.07, .88]]
-          .map(([x, y]) => project({ x: x * width, y: y * height }, inverse));
-        if (region.some(point => !Number.isFinite(point.x) || !Number.isFinite(point.y))) return paused;
         const radius = Math.max(width, height) * radiusRatio * scale;
         const low = Math.max(5, Math.round(.65 * radius));
         const high = Math.max(low + 1, Math.round(1.33 * radius));
@@ -371,4 +387,5 @@
   }
 
   globalThis.CounterSweep = CounterSweep;
+  if (typeof module === "object" && module.exports) module.exports = { sweepRegion };
 })();

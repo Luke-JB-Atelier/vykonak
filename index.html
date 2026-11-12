@@ -8,10 +8,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Výkoňák">
     <title>Výkoňák</title>
-    <link rel="manifest" href="manifest.webmanifest?v=931">
+    <link rel="manifest" href="manifest.webmanifest?v=932">
     <link rel="icon" href="icon-192.png">
     <link rel="apple-touch-icon" href="icon-192.png">
-    <link rel="stylesheet" href="styles.css?v=931">
+    <link rel="stylesheet" href="styles.css?v=932">
   </head>
   <body>
     <div class="app-shell">
@@ -23,7 +23,7 @@
           <button class="topbar-clear-button" id="resetApp" type="button">Vymazat údaje</button>
         </div>
         <div class="topbar-actions">
-          <span class="app-version">v9.31</span>
+          <span class="app-version">v9.32</span>
           <div class="company-mark" aria-label="SOLEA výrobní družstvo">
             <strong>SOLEA</strong>
             <span>výrobní družstvo</span>
@@ -507,6 +507,7 @@
             <button class="counter-calibrate" id="counterSweepReset" type="button">Nový přejezd</button>
             <button class="counter-calibrate" id="counterReview" type="button" aria-pressed="false" disabled>Zkontrolovat značky</button>
           </div>
+          <button class="counter-calibrate" id="counterCalibrate" type="button" disabled>Kalibrovat podle jednoho kusu</button>
           <div class="counter-settings">
             <div class="counter-settings-title">
               <strong>Ruční nastavení</strong>
@@ -536,7 +537,6 @@
             <small id="counterResolutionHelp">Změna rozlišení spustí měření znovu.</small>
             <output id="counterResolutionActual" aria-live="polite"></output>
           </label>
-          <button class="counter-calibrate" id="counterCalibrate" type="button" disabled>Kalibrovat podle jednoho kusu</button>
           <div class="counter-correction">
             <span>Ruční oprava počtu</span>
             <div>
@@ -621,6 +621,6 @@
       </section>
     </div>
 
-    <script src="app.js?v=931" defer></script>
+    <script src="app.js?v=932" defer></script>
   </body>
 </html>

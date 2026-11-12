@@ -105,6 +105,7 @@ test('counter starts the sweep directly and displays live video independently of
       window.sweepInFlight=0;
       window.sweepMaxInFlight=0;
       window.sweepCalibrationFlags=[];
+      window.sweepAnalysisSizes=[];
       const NativeWorker=window.Worker;
       window.Worker=class {
         constructor(url){
@@ -120,6 +121,7 @@ test('counter starts the sweep directly and displays live video independently of
           window.sweepInFlight++;
           window.sweepMaxInFlight=Math.max(window.sweepMaxInFlight,window.sweepInFlight);
           window.sweepCalibrationFlags.push(args[0].calibratedSize);
+          window.sweepAnalysisSizes.push([args[0].width,args[0].height]);
           this.native.postMessage(...args);
         }
         terminate(){this.ended=true;window.sweepInFlight=0;this.native.terminate();}
@@ -131,6 +133,7 @@ test('counter starts the sweep directly and displays live video independently of
         source.width=detail?1600:640;
         source.height=detail?1200:480;
         const ctx=source.getContext('2d');
+        window.sweepSource=source;
         if(detail)ctx.scale(2.5,2.5);
         const circle=(x,y,r,value)=>{
           ctx.fillStyle=`rgb(${value},${value},${value})`;
@@ -199,6 +202,10 @@ test('counter starts the sweep directly and displays live video independently of
     await page.evaluate(()=>{window.sweepPieces=2;window.sweepShift=20;});
     await page.waitForTimeout(650);
     assert.equal(await page.locator('#counterCount').textContent(),'3');
+    await page.evaluate(()=>{window.sweepSource.height=450;});
+    await page.waitForFunction(()=>window.sweepAnalysisSizes.at(-1)?.[1]===450);
+    await page.waitForFunction(()=>document.querySelector('#counterCount').textContent==='0');
+    await page.waitForFunction(()=>!document.querySelector('#counterCalibrate').disabled);
     await page.locator('#counterCalibrate').click();
     assert.equal(await page.locator('#counterLiveBadge').textContent(),'Kalibrace');
     const coords=await page.locator('#counterCanvas').evaluate(canvas=>{
