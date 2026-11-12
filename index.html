@@ -8,10 +8,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Výkoňák">
     <title>Výkoňák</title>
-    <link rel="manifest" href="manifest.webmanifest?v=930">
+    <link rel="manifest" href="manifest.webmanifest?v=931">
     <link rel="icon" href="icon-192.png">
     <link rel="apple-touch-icon" href="icon-192.png">
-    <link rel="stylesheet" href="styles.css?v=930">
+    <link rel="stylesheet" href="styles.css?v=931">
   </head>
   <body>
     <div class="app-shell">
@@ -23,7 +23,7 @@
           <button class="topbar-clear-button" id="resetApp" type="button">Vymazat údaje</button>
         </div>
         <div class="topbar-actions">
-          <span class="app-version">v9.30</span>
+          <span class="app-version">v9.31</span>
           <div class="company-mark" aria-label="SOLEA výrobní družstvo">
             <strong>SOLEA</strong>
             <span>výrobní družstvo</span>
@@ -465,12 +465,24 @@
           </button>
         </div>
 
-        <label class="counter-resolution" id="counterCameraControl" hidden>
-          <span>Kamera</span>
-          <select id="counterCamera">
-            <option value="">Automaticky</option>
-          </select>
-        </label>
+        <div class="counter-resolution" id="counterCameraControl" hidden>
+          <label for="counterCamera">Kamera</label>
+          <div class="counter-camera-row">
+            <select id="counterCamera">
+              <option value="">Automaticky</option>
+            </select>
+            <button id="counterRenameCamera" type="button" disabled>Přejmenovat</button>
+          </div>
+          <form class="counter-camera-name" id="counterCameraNameForm" hidden>
+            <label for="counterCameraName">Vlastní název kamery</label>
+            <input id="counterCameraName" type="text" maxlength="40" autocomplete="off" placeholder="Např. Díly">
+            <div class="counter-camera-row">
+              <button type="submit">Uložit název</button>
+              <button id="counterCancelCameraName" type="button">Zrušit</button>
+            </div>
+            <small>Prázdný název obnoví původní označení.</small>
+          </form>
+        </div>
         <div class="counter-stage" id="counterStage">
           <video id="counterVideo" playsinline muted aria-hidden="true"></video>
           <canvas id="counterCanvas" aria-label="Obraz kamery s označenými kusy"></canvas>
@@ -609,6 +621,6 @@
       </section>
     </div>
 
-    <script src="app.js?v=930" defer></script>
+    <script src="app.js?v=931" defer></script>
   </body>
 </html>

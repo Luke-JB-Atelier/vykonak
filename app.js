@@ -166,6 +166,10 @@
     counterReview: document.querySelector("#counterReview"),
     counterCamera: document.querySelector("#counterCamera"),
     counterCameraControl: document.querySelector("#counterCameraControl"),
+    counterRenameCamera: document.querySelector("#counterRenameCamera"),
+    counterCameraNameForm: document.querySelector("#counterCameraNameForm"),
+    counterCameraName: document.querySelector("#counterCameraName"),
+    counterCancelCameraName: document.querySelector("#counterCancelCameraName"),
     counterResolution: document.querySelector("#counterResolution"),
     counterResolutionActual: document.querySelector("#counterResolutionActual"),
     counterSensitivity: document.querySelector("#counterSensitivity"),
@@ -211,6 +215,8 @@
   let counterLatestFrame = null;
   let counterCameraGeneration = 0;
   let counterCameraId = "";
+  const counterCameraNames = new Map();
+  let counterRenamingCameraId = "";
   let counterLastVideoTime = -1;
   let counterDetectorWorker = null;
   let counterDetectionBusy = false;
@@ -427,6 +433,12 @@
     saveCounterSettings();
     restartCounterCamera();
   });
+  els.counterRenameCamera.addEventListener("click", renameCounterCamera);
+  els.counterCameraNameForm.addEventListener("submit", saveCounterCameraName);
+  els.counterCancelCameraName.addEventListener("click", () => {
+    closeCounterCameraName();
+    els.counterRenameCamera.focus();
+  });
   navigator.mediaDevices?.addEventListener?.("devicechange", () => {
     if (!els.counterSheet.hidden) void updateCounterCameras(counterCameraGeneration);
   });
@@ -475,7 +487,7 @@
     });
     window.addEventListener("load", () => {
       navigator.serviceWorker
-        .register("sw.js?v=930", { updateViaCache: "none" })
+        .register("sw.js?v=931", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
       updateInstallButtons();
@@ -580,22 +592,52 @@
     const totals = new Map();
     const seen = new Map();
     for (const name of names) totals.set(name, (totals.get(name) || 0) + 1);
-    const activeId = counterStream?.getVideoTracks()[0]?.getSettings().deviceId;
+    const activeId = activeCounterCameraId();
     let activeName = "";
     const options = cameras.map((camera, index) => {
       const name = names[index];
       const occurrence = (seen.get(name) || 0) + 1;
       seen.set(name, occurrence);
-      const label = totals.get(name) > 1 ? `${name} (${occurrence})` : name;
+      const label = counterCameraNames.get(camera.deviceId) ?? (totals.get(name) > 1 ? `${name} (${occurrence})` : name);
       if (camera.deviceId === activeId) activeName = label;
       return new Option(label, camera.deviceId);
     });
     if (counterCameraId && !cameras.some(camera => camera.deviceId === counterCameraId)) {
-      options.push(new Option("Uložená kamera", counterCameraId));
+      options.push(new Option(counterCameraNames.get(counterCameraId) ?? "Uložená kamera", counterCameraId));
     }
     els.counterCamera.replaceChildren(new Option(activeName ? `Automaticky – ${activeName}` : "Automaticky", ""), ...options);
     els.counterCamera.value = counterCameraId;
     els.counterCameraControl.hidden = !counterCameraId && cameras.length < 2;
+    els.counterRenameCamera.disabled = !(counterCameraId || activeId);
+  }
+
+  function activeCounterCameraId() {
+    return counterStream?.getVideoTracks()[0]?.getSettings().deviceId;
+  }
+
+  function renameCounterCamera() {
+    counterRenamingCameraId = counterCameraId || activeCounterCameraId() || "";
+    if (!counterRenamingCameraId) return;
+    els.counterCameraName.value = counterCameraNames.get(counterRenamingCameraId) ?? "";
+    els.counterCameraNameForm.hidden = false;
+    els.counterCameraName.focus();
+  }
+
+  function saveCounterCameraName(event) {
+    event.preventDefault();
+    if (!counterRenamingCameraId) return;
+    const name = els.counterCameraName.value.trim().slice(0, 40);
+    if (name) counterCameraNames.set(counterRenamingCameraId, name);
+    else counterCameraNames.delete(counterRenamingCameraId);
+    saveCounterSettings();
+    closeCounterCameraName();
+    void updateCounterCameras(counterCameraGeneration);
+    els.counterRenameCamera.focus();
+  }
+
+  function closeCounterCameraName() {
+    counterRenamingCameraId = "";
+    els.counterCameraNameForm.hidden = true;
   }
 
   function setCounterCameraUnavailable(errorName) {
@@ -626,6 +668,7 @@
 
   function stopCounterCamera() {
     counterCameraGeneration++;
+    closeCounterCameraName();
     resetCounterWorker();
     if (counterAnimationFrame) cancelAnimationFrame(counterAnimationFrame);
     counterAnimationFrame = 0;
@@ -757,6 +800,9 @@
         els.counterSize.value = String(clampNumber(saved.size, 10, 100));
         if (Object.hasOwn(COUNTER_CAMERA_PRESETS, saved.resolution)) els.counterResolution.value = saved.resolution;
         if (typeof saved.cameraId === "string") counterCameraId = saved.cameraId;
+        for (const [id, name] of Object.entries(saved.cameraNames ?? {})) {
+          if (typeof name === "string" && name.trim()) counterCameraNames.set(id, name.trim().slice(0, 40));
+        }
       }
     } catch {
       // Invalid local settings fall back to the proven 55 / 35 defaults.
@@ -777,7 +823,8 @@
         sensitivity: Number(els.counterSensitivity.value),
         size: Number(els.counterSize.value),
         resolution: els.counterResolution.value,
-        cameraId: counterCameraId
+        cameraId: counterCameraId,
+        cameraNames: Object.fromEntries(counterCameraNames)
       }));
     } catch {
       // The controls still work when local storage is unavailable.
@@ -853,7 +900,7 @@
     }
     try {
       if (!counterDetectorWorker) {
-        const worker = new Worker("counter-worker.js?v=930");
+        const worker = new Worker("counter-worker.js?v=931");
         counterDetectorWorker = worker;
         worker.onmessage = ({data}) => {
           if (counterDetectorWorker !== worker) return;

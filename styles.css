@@ -1046,6 +1046,32 @@ html {
 
 .counter-resolution[hidden] { display: none; }
 
+.counter-camera-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+}
+
+.counter-camera-row button,
+.counter-camera-name input {
+  min-height: 44px;
+  padding: 6px 8px;
+  border: 1px solid #b8d4dc;
+  border-radius: 7px;
+  color: inherit;
+  background: white;
+  font: inherit;
+}
+
+.counter-camera-row button:disabled { opacity: 0.5; }
+
+.counter-camera-name {
+  display: grid;
+  gap: 4px;
+}
+
+.counter-camera-name[hidden] { display: none; }
+
 .counter-resolution small,
 .counter-resolution output {
   font-size: 0.72rem;

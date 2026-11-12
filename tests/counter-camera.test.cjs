@@ -49,11 +49,18 @@ test('chooses the exact camera when two webcams have the same name and remembers
     await waitForCamera('table');
     assert.equal(await page.evaluate(()=>window.cameraStreams[0].getVideoTracks()[0].readyState),'ended');
     assert.deepEqual(await page.evaluate(()=>window.cameraCalls.at(-1).deviceId),{exact:'table'});
+    const cameraCallsBeforeRename=await page.evaluate(()=>window.cameraCalls.length);
+    await page.locator('#counterRenameCamera').click();
+    await page.locator('#counterCameraName').fill('Díly');
+    await page.getByRole('button',{name:'Uložit název'}).click();
+    await page.waitForFunction(()=>document.querySelector('#counterCamera option:checked').textContent==='Díly');
+    assert.equal(await page.evaluate(()=>window.cameraCalls.length),cameraCallsBeforeRename);
     await close();
     await page.reload();
     await open();
     await waitForCamera('table');
     assert.equal(await page.locator('#counterCamera').inputValue(),'table');
+    assert.equal(await page.locator('#counterCamera option:checked').textContent(),'Díly');
     await page.locator('#counterResolution').selectOption('light');
     await page.waitForFunction(()=>window.cameraCalls.at(-1)?.width.ideal===800);
     await waitForCamera('table');
@@ -64,8 +71,19 @@ test('chooses the exact camera when two webcams have the same name and remembers
     await page.waitForFunction(()=>document.querySelector('#counterEmptyTitle').textContent==='Vybranou kameru nelze otevřít');
     assert.equal(await page.evaluate(()=>window.cameraCalls.length),before+1);
     assert.equal(await page.locator('#counterCamera').inputValue(),'table');
+    assert.equal(await page.locator('#counterCamera option:checked').textContent(),'Díly');
     await page.locator('#counterCamera').selectOption('face');
     await waitForCamera('face');
+    await page.evaluate(()=>{
+      window.availableCameras=['face','table'];
+      navigator.mediaDevices.dispatchEvent(new Event('devicechange'));
+    });
+    await page.locator('#counterCamera').selectOption('table');
+    await waitForCamera('table');
+    await page.locator('#counterRenameCamera').click();
+    await page.locator('#counterCameraName').fill('');
+    await page.getByRole('button',{name:'Uložit název'}).click();
+    await page.waitForFunction(()=>document.querySelector('#counterCamera option:checked').textContent==='Logitech C922 (2)');
     await close();
   } finally { await browser.close(); }
 });
@@ -144,6 +162,7 @@ test('counter starts the sweep directly and displays live video independently of
     await page.goto(process.env.COUNTER_BASE_URL);
     await page.locator('#openPieceCounter').click();
     await page.waitForFunction(()=>document.querySelector('#counterResolutionActual').textContent.includes('640 × 480'));
+    assert.ok(!(await page.locator('#counterCamera option').allTextContents()).includes('Díly'));
     assert.deepEqual(await page.evaluate(()=>window.sweepCameraRequests[0]),{
       facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:960},aspectRatio:{ideal:4/3},frameRate:{ideal:30}
     });
