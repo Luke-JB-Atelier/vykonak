@@ -637,7 +637,7 @@
       resetCounterWorker();
       els.counterStage.scrollIntoView({ block: "center", behavior: "smooth" });
     }
-    els.counterLiveBadge.textContent = active ? "Kalibrace" : "Živě";
+    els.counterLiveBadge.textContent = active ? "Kalibrace" : els.counterSweep.checked ? "Přejezd" : "Živě";
     if (els.counterCalibrationHint) els.counterCalibrationHint.textContent = "1. Klepni na střed plastu samostatného kusu položeného naplocho. Obraz teď stojí.";
     els.counterStage.classList.toggle("is-calibrating", counterCalibrationMode);
     if (els.counterCalibrationHint) els.counterCalibrationHint.hidden = !counterCalibrationMode;
@@ -881,9 +881,12 @@
     const scaleX = output.width / analysisWidth, scaleY = output.height / analysisHeight;
     if (sweep) {
       if (sweep.region) drawCounterRegion(outputContext, sweep.region, scaleX, scaleY);
-      const hint = sweep.aligned
-        ? "Pomalu přejeď přes skupinu spodků otočených dutinou nahoru. Potvrzené značky zůstanou do konce přejezdu."
-        : "Poloha kamery je nejistá. Vrať kameru trochu zpět nebo začni nový přejezd.";
+      let hint = "Poloha kamery je nejistá. Vrať kameru trochu zpět nebo začni nový přejezd.";
+      if (sweep.aligned) {
+        hint = sweep.detected || sweep.count
+          ? `V záběru ${sweep.detected} možných spodků, potvrzeno ${sweep.count}. Přejížděj pomalu přes skupinu.`
+          : "V záběru zatím žádný spodek. Zkus kalibraci velikosti podle jednoho kusu.";
+      }
       if (els.counterSweepHint.textContent !== hint) els.counterSweepHint.textContent = hint;
     }
     drawCounterComponents(outputContext, components, scaleX, scaleY);

@@ -49,7 +49,8 @@ test('sweep mode starts in a worker, holds the count, and resets for a new group
     assert.equal(await page.locator('#counterSweep').isChecked(),false);
     assert.ok(!requests.some(request=>request.url().includes('opencv-')));
     await page.locator('#counterSweep').check();
-    await page.waitForFunction(()=>document.querySelector('#counterSweepHint').textContent.includes('Potvrzené značky'),null,{timeout:35000});
+    await page.waitForFunction(()=>document.querySelector('#counterSweepHint').textContent.includes('3 možných spodků, potvrzeno 0'),null,{timeout:35000});
+    assert.equal(await page.locator('#counterLiveBadge').textContent(),'Přejezd');
     assert.equal(await page.locator('#counterSeparate').isDisabled(),true);
     for(const shift of [4,8,12,16]){
       await page.evaluate(offset=>{window.sweepShift=offset;},shift);
