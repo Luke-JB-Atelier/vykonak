@@ -1,6 +1,75 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 
+test('chooses the exact camera when two webcams have the same name and remembers it',
+  {skip:!process.env.COUNTER_BASE_URL,timeout:35000},async()=>{
+  const {chromium}=require('playwright');
+  const browser=await chromium.launch({headless:true,...(process.env.EDGE_PATH?{executablePath:process.env.EDGE_PATH}:{})});
+  try {
+    const context=await browser.newContext({serviceWorkers:'block'});
+    const page=await context.newPage();
+    await page.addInitScript(()=>{
+      window.cameraCalls=[];
+      window.availableCameras=['face','table'];
+      window.cameraStreams=[];
+      navigator.mediaDevices.enumerateDevices=async()=>window.availableCameras.map(deviceId=>({
+        deviceId,kind:'videoinput',label:'Logitech C922'
+      }));
+      navigator.mediaDevices.getUserMedia=async({video})=>{
+        window.cameraCalls.push(video);
+        const deviceId=video.deviceId?.exact||'face';
+        if(!window.availableCameras.includes(deviceId))throw new DOMException('Camera unavailable','NotFoundError');
+        const canvas=document.createElement('canvas');
+        canvas.width=320;canvas.height=240;
+        const ctx=canvas.getContext('2d');
+        const draw=()=>{ctx.fillStyle=deviceId==='table'?'green':'red';ctx.fillRect(0,0,320,240);};
+        draw();
+        const stream=canvas.captureStream(10);
+        const timer=setInterval(draw,100);
+        const track=stream.getVideoTracks()[0],stop=track.stop.bind(track);
+        track.getSettings=()=>({deviceId});
+        track.stop=()=>{clearInterval(timer);stop();};
+        window.cameraStreams.push(stream);
+        return stream;
+      };
+    });
+    const open=()=>page.locator('#openPieceCounter').click();
+    const close=()=>page.locator('#counterClose').click();
+    const waitForCamera=id=>page.waitForFunction(deviceId=>{
+      const video=document.querySelector('#counterVideo');
+      return video.srcObject?.getVideoTracks()[0].getSettings().deviceId===deviceId && video.readyState>=2;
+    },id);
+    await page.goto(process.env.COUNTER_BASE_URL);
+    await open();
+    await waitForCamera('face');
+    assert.deepEqual(await page.locator('#counterCamera option').allTextContents(),[
+      'Automaticky – Logitech C922 (1)','Logitech C922 (1)','Logitech C922 (2)'
+    ]);
+    await page.locator('#counterCamera').selectOption('table');
+    await waitForCamera('table');
+    assert.equal(await page.evaluate(()=>window.cameraStreams[0].getVideoTracks()[0].readyState),'ended');
+    assert.deepEqual(await page.evaluate(()=>window.cameraCalls.at(-1).deviceId),{exact:'table'});
+    await close();
+    await page.reload();
+    await open();
+    await waitForCamera('table');
+    assert.equal(await page.locator('#counterCamera').inputValue(),'table');
+    await page.locator('#counterResolution').selectOption('light');
+    await page.waitForFunction(()=>window.cameraCalls.at(-1)?.width.ideal===800);
+    await waitForCamera('table');
+    await close();
+    await page.evaluate(()=>{window.availableCameras=['face'];});
+    const before=await page.evaluate(()=>window.cameraCalls.length);
+    await open();
+    await page.waitForFunction(()=>document.querySelector('#counterEmptyTitle').textContent==='Vybranou kameru nelze otevřít');
+    assert.equal(await page.evaluate(()=>window.cameraCalls.length),before+1);
+    assert.equal(await page.locator('#counterCamera').inputValue(),'table');
+    await page.locator('#counterCamera').selectOption('face');
+    await waitForCamera('face');
+    await close();
+  } finally { await browser.close(); }
+});
+
 test('counter starts the sweep directly and displays live video independently of the worker',
   {skip:!process.env.COUNTER_BASE_URL,timeout:55000},async()=>{
   const {chromium}=require('playwright');

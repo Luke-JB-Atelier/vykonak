@@ -164,6 +164,8 @@
     counterSweepHint: document.querySelector("#counterSweepHint"),
     counterSweepReset: document.querySelector("#counterSweepReset"),
     counterReview: document.querySelector("#counterReview"),
+    counterCamera: document.querySelector("#counterCamera"),
+    counterCameraControl: document.querySelector("#counterCameraControl"),
     counterResolution: document.querySelector("#counterResolution"),
     counterResolutionActual: document.querySelector("#counterResolutionActual"),
     counterSensitivity: document.querySelector("#counterSensitivity"),
@@ -208,6 +210,7 @@
   let counterReviewMode = false;
   let counterLatestFrame = null;
   let counterCameraGeneration = 0;
+  let counterCameraId = "";
   let counterLastVideoTime = -1;
   let counterDetectorWorker = null;
   let counterDetectionBusy = false;
@@ -419,6 +422,14 @@
   els.counterSweepReset?.addEventListener("click", restartCounterSweep);
   els.counterReview.addEventListener("click", toggleCounterReview);
   els.counterResolution.addEventListener("change", changeCounterResolution);
+  els.counterCamera.addEventListener("change", () => {
+    counterCameraId = els.counterCamera.value;
+    saveCounterSettings();
+    restartCounterCamera();
+  });
+  navigator.mediaDevices?.addEventListener?.("devicechange", () => {
+    if (!els.counterSheet.hidden) void updateCounterCameras(counterCameraGeneration);
+  });
   els.counterVideo.addEventListener("resize", updateCounterResolutionActual);
   els.counterMinus?.addEventListener("click", () => adjustCounter(-1));
   els.counterPlus?.addEventListener("click", () => adjustCounter(1));
@@ -464,7 +475,7 @@
     });
     window.addEventListener("load", () => {
       navigator.serviceWorker
-        .register("sw.js?v=929", { updateViaCache: "none" })
+        .register("sw.js?v=930", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
       updateInstallButtons();
@@ -497,6 +508,7 @@
   async function startCounterCamera() {
     stopCounterCamera();
     const generation = counterCameraGeneration;
+    const cameraId = counterCameraId;
     counterBaseCount = 0;
     counterManualCorrection = 0;
     updateCounterCount();
@@ -513,11 +525,12 @@
       return;
     }
 
+    void updateCounterCameras(generation);
     try {
       const { width, height, frameRate } = COUNTER_CAMERA_PRESETS[els.counterResolution.value];
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: { ideal: "environment" },
+          ...(cameraId ? { deviceId: { exact: cameraId } } : { facingMode: { ideal: "environment" } }),
           width: { ideal: width },
           height: { ideal: height },
           aspectRatio: { ideal: 4 / 3 },
@@ -530,29 +543,71 @@
         return;
       }
       counterStream = stream;
+      const [track] = stream.getVideoTracks();
+      track.addEventListener("ended", () => {
+        if (generation !== counterCameraGeneration) return;
+        setCounterCameraUnavailable("NotFoundError");
+        void updateCounterCameras(counterCameraGeneration);
+      });
       els.counterVideo.srcObject = stream;
       await els.counterVideo.play();
       if (generation !== counterCameraGeneration || els.counterSheet.hidden) return;
       els.counterEmpty.hidden = true;
       els.counterLiveBadge.hidden = false;
       updateCounterResolutionActual();
+      void updateCounterCameras(generation);
       updateCounterCalibrationButton();
       els.counterSweepHint.textContent = "Spodky otoč dutinou nahoru a pomalu přejeď kamerou přes skupinu.";
       counterLastFrameAt = 0;
       counterAnimationFrame = requestAnimationFrame(counterLiveLoop);
     } catch (error) {
       if (generation !== counterCameraGeneration) return;
-      setCounterCameraUnavailable(error && error.name === "NotAllowedError");
+      setCounterCameraUnavailable(error?.name);
+      void updateCounterCameras(counterCameraGeneration);
     }
   }
 
-  function setCounterCameraUnavailable(permissionDenied = false) {
+  async function updateCounterCameras(generation) {
+    let cameras = [];
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      cameras = devices.filter(device => device.kind === "videoinput" && device.deviceId);
+    } catch {
+      // A browser may restrict enumeration before camera permission is granted.
+    }
+    if (generation !== counterCameraGeneration || els.counterSheet.hidden) return;
+    const names = cameras.map((camera, index) => camera.label || `Kamera ${index + 1}`);
+    const totals = new Map();
+    const seen = new Map();
+    for (const name of names) totals.set(name, (totals.get(name) || 0) + 1);
+    const activeId = counterStream?.getVideoTracks()[0]?.getSettings().deviceId;
+    let activeName = "";
+    const options = cameras.map((camera, index) => {
+      const name = names[index];
+      const occurrence = (seen.get(name) || 0) + 1;
+      seen.set(name, occurrence);
+      const label = totals.get(name) > 1 ? `${name} (${occurrence})` : name;
+      if (camera.deviceId === activeId) activeName = label;
+      return new Option(label, camera.deviceId);
+    });
+    if (counterCameraId && !cameras.some(camera => camera.deviceId === counterCameraId)) {
+      options.push(new Option("Uložená kamera", counterCameraId));
+    }
+    els.counterCamera.replaceChildren(new Option(activeName ? `Automaticky – ${activeName}` : "Automaticky", ""), ...options);
+    els.counterCamera.value = counterCameraId;
+    els.counterCameraControl.hidden = !counterCameraId && cameras.length < 2;
+  }
+
+  function setCounterCameraUnavailable(errorName) {
     stopCounterCamera();
+    const permissionDenied = errorName === "NotAllowedError";
     setCounterEmpty(
-      permissionDenied ? "Fotoaparát nebyl povolen" : "Kameru tady nejde otevřít",
+      permissionDenied ? "Fotoaparát nebyl povolen" : counterCameraId ? "Vybranou kameru nelze otevřít" : "Kameru tady nejde otevřít",
       permissionDenied
         ? "Povol přístup ke kameře a otevři Počítadlo znovu."
-        : "Otevři Výkoňák přímo v prohlížeči; vložené okno může kameru blokovat."
+        : counterCameraId
+          ? "Zkontroluj připojení kamery nebo vyber jinou nad náhledem."
+          : "Otevři Výkoňák přímo v prohlížeči; vložené okno může kameru blokovat."
     );
     els.counterSweepHint.textContent = "";
     if (els.counterCalibrate) {
@@ -701,6 +756,7 @@
         els.counterSensitivity.value = String(clampNumber(saved.sensitivity, 20, 90));
         els.counterSize.value = String(clampNumber(saved.size, 10, 100));
         if (Object.hasOwn(COUNTER_CAMERA_PRESETS, saved.resolution)) els.counterResolution.value = saved.resolution;
+        if (typeof saved.cameraId === "string") counterCameraId = saved.cameraId;
       }
     } catch {
       // Invalid local settings fall back to the proven 55 / 35 defaults.
@@ -720,7 +776,8 @@
       localStorage.setItem(COUNTER_SETTINGS_KEY, JSON.stringify({
         sensitivity: Number(els.counterSensitivity.value),
         size: Number(els.counterSize.value),
-        resolution: els.counterResolution.value
+        resolution: els.counterResolution.value,
+        cameraId: counterCameraId
       }));
     } catch {
       // The controls still work when local storage is unavailable.
@@ -729,9 +786,12 @@
 
   function changeCounterResolution() {
     saveCounterSettings();
+    restartCounterCamera();
+  }
+
+  function restartCounterCamera() {
     if (els.counterSheet.hidden) return;
     counterSweepRadius = null;
-    restartCounterSweep();
     void startCounterCamera();
   }
 
@@ -793,7 +853,7 @@
     }
     try {
       if (!counterDetectorWorker) {
-        const worker = new Worker("counter-worker.js?v=929");
+        const worker = new Worker("counter-worker.js?v=930");
         counterDetectorWorker = worker;
         worker.onmessage = ({data}) => {
           if (counterDetectorWorker !== worker) return;

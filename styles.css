@@ -1044,6 +1044,8 @@ html {
   min-height: 44px;
 }
 
+.counter-resolution[hidden] { display: none; }
+
 .counter-resolution small,
 .counter-resolution output {
   font-size: 0.72rem;
