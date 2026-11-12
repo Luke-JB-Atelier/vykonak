@@ -17,6 +17,7 @@ test('counter starts the sweep directly and displays live video independently of
       window.sweepWorkerDelay=0;
       window.sweepInFlight=0;
       window.sweepMaxInFlight=0;
+      window.sweepCalibrationFlags=[];
       const NativeWorker=window.Worker;
       window.Worker=class {
         constructor(url){
@@ -31,6 +32,7 @@ test('counter starts the sweep directly and displays live video independently of
         postMessage(...args){
           window.sweepInFlight++;
           window.sweepMaxInFlight=Math.max(window.sweepMaxInFlight,window.sweepInFlight);
+          window.sweepCalibrationFlags.push(args[0].calibratedSize);
           this.native.postMessage(...args);
         }
         terminate(){this.ended=true;window.sweepInFlight=0;this.native.terminate();}
@@ -78,6 +80,7 @@ test('counter starts the sweep directly and displays live video independently of
     });
     assert.equal(await page.locator('#counterSweep, #counterSeparate').count(),0);
     await page.waitForFunction(()=>document.querySelector('#counterSweepHint').textContent.includes('3 možných spodků, potvrzeno 0'),null,{timeout:35000});
+    assert.equal(await page.evaluate(()=>window.sweepCalibrationFlags[0]),false);
     assert.equal(await page.locator('#counterLiveBadge').textContent(),'Přejezd');
     assert.equal(await page.locator('#counterCanvas').isVisible(),false);
     assert.equal(await page.locator('#counterVideo').evaluate(video=>getComputedStyle(video).opacity),'1');
@@ -118,6 +121,7 @@ test('counter starts the sweep directly and displays live video independently of
     await page.touchscreen.tap(coords.x+181*coords.scale,coords.y+190*coords.scale);
     await page.touchscreen.tap(coords.x+203*coords.scale,coords.y+190*coords.scale);
     await page.waitForFunction(()=>document.querySelector('#counterCalibrate').textContent.includes('Velikost spodku nastavena'));
+    await page.waitForFunction(()=>window.sweepCalibrationFlags.at(-1)===true);
     assert.equal(await page.locator('#counterCanvas').isVisible(),false);
     await page.locator('#counterSweepReset').click();
     await page.waitForFunction(()=>document.querySelector('#counterCount').textContent==='0');

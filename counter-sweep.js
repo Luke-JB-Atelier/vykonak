@@ -257,13 +257,12 @@
       this.count = 0;
     }
 
-    selectBottoms(hits) {
-      const known = this.tracks.filter(track => track.confirmed).map(track => ({ ...track.center, strong: true }));
-      const reference = typicalRadius(known) ?? typicalRadius(hits);
+    selectBottoms(hits, groupRadius = null) {
+      const reference = groupRadius ?? typicalRadius(hits);
       return distinctBottoms(hits.filter(hit => fitsGroup(hit.radius, reference)), reference);
     }
 
-    observe(hits, inverse, width, height, time) {
+    observe(hits, inverse, width, height, time, groupRadius = null) {
       const visible = ({ x, y }) => x >= 0 && y >= 0 && x < width && y < height;
       const pairs = [];
       this.tracks.forEach((track, trackIndex) => {
@@ -298,8 +297,11 @@
         const strongViews = track.observations.filter(observation => observation.strong);
         const first = strongViews[0];
         const variedView = strongViews.some(observation => distance(observation.view, view) >= Math.max(4, .20 * hit.radius));
+        const matchesConfirmedSize = groupRadius !== null && track.center.radius >= .8 * groupRadius &&
+          track.center.radius <= 1.2 * groupRadius;
+        const minimumShare = matchesConfirmedSize ? .42 : .5;
         if (strongViews.length >= 3 && time - first.time >= minimumConfirmationTime && variedView &&
-            strongViews.length / track.observations.length >= .5) {
+            strongViews.length / track.observations.length >= minimumShare) {
           ready.push({ track, quality: percentile(strongViews.map(observation => observation.rimSupport), .5) });
         }
       }
@@ -317,7 +319,7 @@
       });
     }
 
-    process(pixels, width, height, { radiusRatio, sensitivity, time = performance.now() }) {
+    process(pixels, width, height, { radiusRatio, sensitivity, calibratedSize = false, time = performance.now() }) {
       const cv = this.cv;
       const paused = { components: [], count: this.count, aligned: false };
       if (this.previous && (this.previous.cols !== width || this.previous.rows !== height)) return paused;
@@ -345,8 +347,10 @@
           const localScale = Math.sqrt(areaScale(hit, transform));
           return { ...hit, ...project(hit, transform), radius: hit.radius * localScale };
         }).filter(hit => Number.isFinite(hit.x) && Number.isFinite(hit.y) && Number.isFinite(hit.radius));
-        const distinct = this.selectBottoms(hits);
-        this.observe(distinct, inverse, width, height, time);
+        const confirmed = this.tracks.filter(track => track.confirmed).map(track => ({ ...track.center, strong: true }));
+        const groupRadius = typicalRadius(confirmed);
+        const distinct = this.selectBottoms(hits, groupRadius);
+        this.observe(distinct, inverse, width, height, time, calibratedSize ? groupRadius : null);
         this.transform = transform;
         if (!this.reference) this.reference = gray.clone();
         this.previous?.delete();

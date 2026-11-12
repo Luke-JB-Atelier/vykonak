@@ -464,7 +464,7 @@
     });
     window.addEventListener("load", () => {
       navigator.serviceWorker
-        .register("sw.js?v=928", { updateViaCache: "none" })
+        .register("sw.js?v=929", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
       updateInstallButtons();
@@ -793,7 +793,7 @@
     }
     try {
       if (!counterDetectorWorker) {
-        const worker = new Worker("counter-worker.js?v=928");
+        const worker = new Worker("counter-worker.js?v=929");
         counterDetectorWorker = worker;
         worker.onmessage = ({data}) => {
           if (counterDetectorWorker !== worker) return;
@@ -811,6 +811,7 @@
         pixels, width, height,
         sensitivity: Number(els.counterSensitivity.value),
         radiusRatio: counterSweepRadius ?? .035 * Number(els.counterSize.value) / 35,
+        calibratedSize: counterSweepRadius !== null,
         time: performance.now()
       }, [pixels.buffer]);
       counterDetectionTimer = setTimeout(failed, 25000);
@@ -838,9 +839,12 @@
       [counterMeasuredCanvas, counterFrameCanvas] = [counterFrameCanvas, counterMeasuredCanvas];
       counterLatestFrame = result;
       updateCounterCalibrationButton();
-      hint = result.detected || result.count
-        ? `V záběru ${result.detected} možných spodků, potvrzeno ${result.count}. Přejížděj pomalu přes skupinu.`
-        : "V záběru zatím žádný spodek. Zkus kalibraci velikosti podle jednoho kusu.";
+      if (!result.detected && !result.count) {
+        hint = "V záběru zatím žádný spodek. Kalibruj velikost podle jednoho kusu.";
+      } else {
+        const instruction = result.count ? "Přejížděj pomalu přes skupinu." : "Pohni kamerou pomalu do strany, aby se kusy potvrdily.";
+        hint = `V záběru ${result.detected} možných spodků, potvrzeno ${result.count}. ${instruction}`;
+      }
     }
     if (els.counterSweepHint.textContent !== hint) els.counterSweepHint.textContent = hint;
     counterBaseCount = result.count;

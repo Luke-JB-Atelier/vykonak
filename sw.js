@@ -1,14 +1,14 @@
 const CACHE_PREFIX = "vykonak-kalkulator-";
-const CACHE_NAME = `${CACHE_PREFIX}v928`;
+const CACHE_NAME = `${CACHE_PREFIX}v929`;
 const ASSETS = [
   "./",
   "./index.html",
-  "./index.html?v=928",
-  "./styles.css?v=928",
-  "./app.js?v=928",
-  "./counter-worker.js?v=928",
-  "./counter-sweep.js?v=928",
-  "./manifest.webmanifest?v=928",
+  "./index.html?v=929",
+  "./styles.css?v=929",
+  "./app.js?v=929",
+  "./counter-worker.js?v=929",
+  "./counter-sweep.js?v=929",
+  "./manifest.webmanifest?v=929",
   "./icon.svg",
   "./icon-192.png",
   "./icon-512.png",

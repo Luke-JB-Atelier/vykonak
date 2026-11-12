@@ -64,6 +64,18 @@ test('group size rejects an inner ring and an oversized gap while retaining a ti
   assert.deepEqual(counter.selectBottoms([hits.at(-1)]), [hits.at(-1)]);
 });
 
+test('intermittent rim evidence gets extra tolerance only at the confirmed group size', () => {
+  const counter = new CounterSweep();
+  const candidate = { x: 140, y: 300, radius: 30, strong: true, rimSupport: 52 };
+  const undersized = { ...candidate, x: 260, radius: 22 };
+  for (let frame = 0; frame < 7; frame++) {
+    const strong = [0, 3, 6].includes(frame);
+    const hits = [candidate, undersized].map(hit => ({ ...hit, strong }));
+    counter.observe(hits, [1, 0, frame * 4, 0, 1, 0, 0, 0, 1], 540, 960, frame * 160, 30);
+  }
+  assert.deepEqual(counter.tracks.filter(track => track.confirmed).map(track => track.center.x), [140]);
+});
+
 test('stays at 11 in a generated sweep with glare, a cast shadow and an unalignable frame', { timeout: 20000 }, async () => {
   const { cv } = await loadOpenCv();
   const width = 540, height = 960;
