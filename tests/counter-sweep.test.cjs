@@ -10,7 +10,7 @@ function loadOpenCv() {
 test('counts a confirmed position once across intermittent detections', () => {
   const counter = new CounterSweep();
   const centers = Array.from({ length: 11 }, (_, index) => ({
-    x: 125 + 68 * (index % 4), y: 270 + 69 * Math.floor(index / 4), radius: 30, strong: true
+    x: 125 + 68 * (index % 4), y: 270 + 69 * Math.floor(index / 4), radius: 30, strong: true, rimSupport: 60
   }));
   const counts = [];
   for (const [frame, shift] of [0, 5, 12, 20, 28, 35, 41].entries()) {
@@ -26,7 +26,7 @@ test('counts a confirmed position once across intermittent detections', () => {
 
 test('a close candidate that started before its neighbor confirmed cannot be counted twice', () => {
   const counter = new CounterSweep();
-  const bottom = { x: 180, y: 310, radius: 30, strong: true };
+  const bottom = { x: 180, y: 310, radius: 30, strong: true, rimSupport: 60 };
   const duplicate = { ...bottom, x: 209 };
   for (let frame = 0; frame < 5; frame++) {
     const hits = frame === 0 ? [bottom] : [bottom, duplicate];
@@ -34,6 +34,18 @@ test('a close candidate that started before its neighbor confirmed cannot be cou
   }
   assert.equal(counter.tracks.length, 2);
   assert.equal(counter.count, 1);
+});
+
+test('deep overlap favors the stronger rim and still counts a touching neighbor', () => {
+  const counter = new CounterSweep();
+  const bottom = { x: 180, y: 310, radius: 30, strong: true, rimSupport: 58 };
+  const overlapping = { ...bottom, x: 146, rimSupport: 37 };
+  const neighbor = { ...bottom, x: 232 };
+  for (let frame = 0; frame < 5; frame++) {
+    counter.observe([overlapping, bottom, neighbor], [1, 0, frame * 5, 0, 1, 0, 0, 0, 1], 540, 960, frame * 200);
+  }
+  assert.deepEqual(counter.tracks.filter(track => track.confirmed).map(track => track.center.x), [180, 232]);
+  assert.equal(counter.count, 2);
 });
 
 test('stays at 11 in a generated sweep with glare, a cast shadow and an unalignable frame', { timeout: 20000 }, async () => {

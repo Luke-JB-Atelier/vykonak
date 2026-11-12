@@ -2,7 +2,7 @@
   "name": "V\u00fdko\u0148\u00e1k",
   "short_name": "V\u00fdko\u0148\u00e1k",
   "description": "Offline kalkul\u00e1tor pro rozd\u011blen\u00ed v\u00fdroby do v\u00fdko\u0148\u00e1ku.",
-  "start_url": "./index.html?v=925",
+  "start_url": "./index.html?v=926",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",

@@ -462,7 +462,7 @@
     });
     window.addEventListener("load", () => {
       navigator.serviceWorker
-        .register("sw.js?v=925", { updateViaCache: "none" })
+        .register("sw.js?v=926", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
       updateInstallButtons();
@@ -846,7 +846,7 @@
     }
     try {
       if (!counterDetectorWorker) {
-        const worker = new Worker("counter-worker.js?v=925");
+        const worker = new Worker("counter-worker.js?v=926");
         counterDetectorWorker = worker;
         worker.onmessage = ({data}) => {
           if (counterDetectorWorker !== worker) return;

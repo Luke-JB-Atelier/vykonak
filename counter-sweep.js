@@ -43,8 +43,8 @@
       supportedRays += supported;
       supportedSectors += Number(supported >= 2);
     }
-    if (supportedRays >= 10 && supportedSectors >= 3) return 2;
-    return supportedRays >= 6 && supportedSectors >= 2 ? 1 : 0;
+    if (supportedRays < 6 || supportedSectors < 2) return null;
+    return { strong: supportedRays >= 10 && supportedSectors >= 3, rimSupport: supportedSectors * 8 + supportedRays };
   }
 
   function percentile(values, fraction) {
@@ -90,6 +90,16 @@
 
   function closeTo(a, b, fraction = .82) {
     return distance(a, b) < fraction * Math.max(a.radius, b.radius);
+  }
+
+  function bottomsOverlap(a, b) {
+    // In the reference view the circular fits can still overlap under tilt.
+    // Require substantial overlap before treating two positions as one part.
+    return distance(a, b) < .65 * (a.radius + b.radius);
+  }
+
+  function compareRims(a, b) {
+    return Number(b.strong) - Number(a.strong) || b.rimSupport - a.rimSupport;
   }
 
   function trackFrame(cv, previous, current) {
@@ -150,9 +160,9 @@
       cv.remap(gray, patch, mapX, mapY, cv.INTER_LINEAR, cv.BORDER_REFLECT101);
       const pixels = patch.data;
       // A broad clipped center has no usable detail about the interior.
-      if (glare.filter(index => pixels[index] >= 249).length > .6 * glare.length) return 0;
+      if (glare.filter(index => pixels[index] >= 249).length > .6 * glare.length) return null;
       const evidence = rimEvidence(pixels);
-      if (!evidence) return 0;
+      if (!evidence) return null;
       patch.convertTo(smooth, cv.CV_32F);
       cv.GaussianBlur(smooth, smooth, new cv.Size(5, 5), .9);
       cv.Sobel(smooth, gx, cv.CV_32F, 1, 0, 3, .125);
@@ -160,7 +170,7 @@
       const dx = gx.data32F, dy = gy.data32F;
       const magnitude = index => Math.hypot(dx[index], dy[index]);
       return percentile(interior.map(magnitude), .85) < 1.15 * Math.max(.8, percentile(rim.map(magnitude), .8))
-        ? evidence : 0;
+        ? evidence : null;
     } finally {
       mapX.delete(); mapY.delete(); patch.delete(); smooth.delete(); gx.delete(); gy.delete();
     }
@@ -188,10 +198,12 @@
           const hit = { x: data[i] + x0, y: data[i + 1] + y0, radius: data[i + 2] };
           if (cv.pointPolygonTest(polygon, new cv.Point(hit.x, hit.y), false) < 0) continue;
           const existing = hits.findIndex(other => closeTo(hit, other));
-          if (existing !== -1 && hits[existing].strong) continue;
+          if (existing !== -1 && hits[existing].rimSupport === 64) continue;
           const evidence = cavityEvidence(cv, gray, hit);
-          if (evidence && existing === -1) hits.push({ ...hit, strong: evidence === 2 });
-          else if (evidence === 2) hits[existing] = { ...hit, strong: true };
+          if (!evidence) continue;
+          const candidate = { ...hit, ...evidence };
+          if (existing === -1) hits.push(candidate);
+          else if (compareRims(candidate, hits[existing]) < 0) hits[existing] = candidate;
         }
       }
       return hits;
@@ -222,6 +234,7 @@
         });
       });
       const usedTracks = new Set(), usedHits = new Set();
+      const ready = [];
       pairs.sort((a, b) => Number(hits[b.hitIndex].strong) - Number(hits[a.hitIndex].strong) || a.gap - b.gap);
       for (const { trackIndex, hitIndex } of pairs) {
         if (usedTracks.has(trackIndex) || usedHits.has(hitIndex)) continue;
@@ -238,22 +251,26 @@
         };
         if (track.confirmed) continue;
         const view = project(track.initialCenter, inverse);
-        Object.assign(track.observations.at(-1), { strong: true, view });
+        Object.assign(track.observations.at(-1), { strong: true, view, rimSupport: hit.rimSupport });
         const strongViews = track.observations.filter(observation => observation.strong);
         const first = strongViews[0];
         const variedView = strongViews.some(observation => distance(observation.view, view) >= Math.max(4, .20 * hit.radius));
         if (strongViews.length >= 3 && time - first.time >= minimumConfirmationTime && variedView &&
-            strongViews.length / track.observations.length >= .5 &&
-            !this.tracks.some(other => other.confirmed && closeTo(other.center, track.center, 1.05))) {
-          track.confirmed = true;
-          track.number = ++this.count;
-          track.observations = [];
+            strongViews.length / track.observations.length >= .5) {
+          ready.push({ track, quality: percentile(strongViews.map(observation => observation.rimSupport), .5) });
         }
       }
+      for (const { track } of ready.sort((a, b) => b.quality - a.quality)) {
+        if (this.tracks.some(other => other.confirmed && bottomsOverlap(other.center, track.center))) continue;
+        track.confirmed = true;
+        track.number = ++this.count;
+        track.observations = [];
+      }
       hits.forEach((hit, index) => {
-        if (usedHits.has(index) || this.tracks.some(track => closeTo(track.center, hit, track.confirmed ? 1.05 : .82))) return;
+        if (usedHits.has(index) || this.tracks.some(track => track.confirmed
+          ? bottomsOverlap(track.center, hit) : closeTo(track.center, hit))) return;
         this.tracks.push({ center: hit, initialCenter: hit, recent: [hit], confirmed: false, visible: true,
-          observations: [{ time, strong: hit.strong, view: project(hit, inverse) }] });
+          observations: [{ time, strong: hit.strong, view: project(hit, inverse), rimSupport: hit.rimSupport }] });
       });
     }
 
@@ -282,8 +299,12 @@
         const low = Math.max(5, Math.round(.65 * radius));
         const high = Math.max(low + 1, Math.round(1.33 * radius));
         const hits = findBottoms(cv, gray, region, low, high, sensitivity);
-        this.observe(hits.map(hit => ({ ...project(hit, transform), radius: hit.radius / scale, strong: hit.strong })),
-          inverse, width, height, time);
+        const distinct = [];
+        for (const hit of hits.sort(compareRims)) {
+          const anchored = { ...hit, ...project(hit, transform), radius: hit.radius / scale };
+          if (!distinct.some(other => bottomsOverlap(anchored, other))) distinct.push(anchored);
+        }
+        this.observe(distinct, inverse, width, height, time);
         this.transform = transform;
         if (!this.reference) this.reference = gray.clone();
         this.previous?.delete();
@@ -294,7 +315,7 @@
           const radius = track.center.radius * scale;
           return { centerX: x, centerY: y, width: 2 * radius, height: 2 * radius, label: track.number };
         });
-        return { components, count: this.count, aligned: true, region, detected: hits.length };
+        return { components, count: this.count, aligned: true, region, detected: distinct.length };
       } finally {
         gray?.delete();
         rgba.delete();
