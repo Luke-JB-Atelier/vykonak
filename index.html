@@ -8,10 +8,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Výkoňák">
     <title>Výkoňák</title>
-    <link rel="manifest" href="manifest.webmanifest?v=924">
+    <link rel="manifest" href="manifest.webmanifest?v=925">
     <link rel="icon" href="icon-192.png">
     <link rel="apple-touch-icon" href="icon-192.png">
-    <link rel="stylesheet" href="styles.css?v=924">
+    <link rel="stylesheet" href="styles.css?v=925">
   </head>
   <body>
     <div class="app-shell">
@@ -23,7 +23,7 @@
           <button class="topbar-clear-button" id="resetApp" type="button">Vymazat údaje</button>
         </div>
         <div class="topbar-actions">
-          <span class="app-version">v9.24</span>
+          <span class="app-version">v9.25</span>
           <div class="company-mark" aria-label="SOLEA výrobní družstvo">
             <strong>SOLEA</strong>
             <span>výrobní družstvo</span>
@@ -498,14 +498,16 @@
             <label>
               <span>Citlivost rozpoznání</span>
               <output id="counterSensitivityValue">55</output>
-              <input id="counterSensitivity" type="range" min="20" max="90" value="55">
+              <input id="counterSensitivity" type="range" min="20" max="90" value="55" aria-describedby="counterSensitivityHelp">
               <small><span>Méně objektů</span><span>Více objektů</span></small>
+              <small class="counter-setting-help" id="counterSensitivityHelp">Začni na 55. Chybí kusy? Přidej trochu. Přibývají stíny? Uber.</small>
             </label>
             <label>
               <span id="counterSizeLabel">Nejmenší velikost kusu</span>
               <output id="counterSizeValue">35</output>
-              <input id="counterSize" type="range" min="10" max="100" value="35">
+              <input id="counterSize" type="range" min="10" max="100" value="35" aria-describedby="counterSizeHelp">
               <small><span>Menší</span><span>Větší</span></small>
+              <small class="counter-setting-help" id="counterSizeHelp">Začni na 35. Vyšší hodnota vynechá menší tvary.</small>
             </label>
           </div>
           <label class="counter-separate">
@@ -598,7 +600,7 @@
       </section>
     </div>
 
-    <script src="counter-engine.js?v=924" defer></script>
-    <script src="app.js?v=924" defer></script>
+    <script src="counter-engine.js?v=925" defer></script>
+    <script src="app.js?v=925" defer></script>
   </body>
 </html>

@@ -161,6 +161,7 @@
     counterSweepHint: document.querySelector("#counterSweepHint"),
     counterSweepReset: document.querySelector("#counterSweepReset"),
     counterSizeLabel: document.querySelector("#counterSizeLabel"),
+    counterSizeHelp: document.querySelector("#counterSizeHelp"),
     counterSeparate: document.querySelector("#counterSeparate"),
     counterNotice: document.querySelector("#counterNotice"),
     counterSensitivity: document.querySelector("#counterSensitivity"),
@@ -461,7 +462,7 @@
     });
     window.addEventListener("load", () => {
       navigator.serviceWorker
-        .register("sw.js?v=924", { updateViaCache: "none" })
+        .register("sw.js?v=925", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
       updateInstallButtons();
@@ -612,6 +613,9 @@
     els.counterSeparate.disabled = enabled;
     els.counterNotice.hidden = enabled;
     els.counterSizeLabel.textContent = enabled ? "Velikost spodku" : "Nejmenší velikost kusu";
+    els.counterSizeHelp.textContent = enabled
+      ? "Začni na 35. Blíž ke kameře přidej, dál uber. Změna posuvníku zahájí nový přejezd."
+      : "Začni na 35. Vyšší hodnota vynechá menší tvary.";
     if (enabled) els.counterSweepHint.textContent = "Spodky dej otevřenou stranou nahoru. Pomalu přejeď přes celou skupinu v rámečku.";
   }
 
@@ -638,7 +642,9 @@
       els.counterStage.scrollIntoView({ block: "center", behavior: "smooth" });
     }
     els.counterLiveBadge.textContent = active ? "Kalibrace" : els.counterSweep.checked ? "Přejezd" : "Živě";
-    if (els.counterCalibrationHint) els.counterCalibrationHint.textContent = "1. Klepni na střed plastu samostatného kusu položeného naplocho. Obraz teď stojí.";
+    if (els.counterCalibrationHint) els.counterCalibrationHint.textContent = els.counterSweep.checked
+      ? "1. Klepni na střed dutiny jednoho spodku. Obraz teď stojí."
+      : "1. Klepni na střed plastu samostatného kusu položeného naplocho. Obraz teď stojí.";
     els.counterStage.classList.toggle("is-calibrating", counterCalibrationMode);
     if (els.counterCalibrationHint) els.counterCalibrationHint.hidden = !counterCalibrationMode;
     updateCounterCalibrationButton();
@@ -653,7 +659,7 @@
     els.counterCalibrate.textContent = counterCalibrationMode
       ? "Zrušit kalibraci"
       : calibrated
-        ? "Vzor kusu nastaven — změnit"
+        ? sweep ? "Velikost spodku nastavena — změnit" : "Vzor kusu nastaven — změnit"
         : "Kalibrovat podle jednoho kusu";
     if (els.counterMode) els.counterMode.textContent = sweep ? "Přejezd" : counterCalibration ? "Podle vzoru" : els.counterSeparate?.checked ? "Zkušební" : "Aktivní";
   }
@@ -797,7 +803,7 @@
     const workContext = counterWorkCanvas.getContext("2d", { willReadFrequently: true });
     workContext.drawImage(counterFrameCanvas, 0, 0, analysisWidth, analysisHeight);
     const pixels = workContext.getImageData(0, 0, analysisWidth, analysisHeight).data;
-    counterPendingFrame = { pixels, width: analysisWidth, height: analysisHeight };
+    counterPendingFrame = { pixels, width: analysisWidth, height: analysisHeight, time: performance.now() };
     if (sweep || els.counterSeparate?.checked) {
       requestCounterDetection(counterPendingFrame);
       return;
@@ -840,7 +846,7 @@
     }
     try {
       if (!counterDetectorWorker) {
-        const worker = new Worker("counter-worker.js?v=924");
+        const worker = new Worker("counter-worker.js?v=925");
         counterDetectorWorker = worker;
         worker.onmessage = ({data}) => {
           if (counterDetectorWorker !== worker) return;
@@ -860,7 +866,10 @@
         sensitivity: Number(els.counterSensitivity?.value || 55),
         size: Number(els.counterSize?.value || 35),
         calibration: counterCalibration,
-        sweep: sweep ? { radiusRatio: counterSweepRadius ?? .035 * Number(els.counterSize.value) / 35 } : null
+        sweep: sweep ? {
+          radiusRatio: counterSweepRadius ?? .035 * Number(els.counterSize.value) / 35,
+          time: frame.time
+        } : null
       }, [pixels.buffer]);
       counterDetectionTimer = setTimeout(failed, sweep ? 25000 : 10000);
     } catch { failed(); }

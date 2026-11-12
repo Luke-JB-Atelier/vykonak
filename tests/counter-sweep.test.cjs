@@ -10,21 +10,33 @@ function loadOpenCv() {
 test('counts a confirmed position once across intermittent detections', () => {
   const counter = new CounterSweep();
   const centers = Array.from({ length: 11 }, (_, index) => ({
-    x: 125 + 68 * (index % 4), y: 270 + 69 * Math.floor(index / 4), radius: 30
+    x: 125 + 68 * (index % 4), y: 270 + 69 * Math.floor(index / 4), radius: 30, strong: true
   }));
   const counts = [];
-  for (const [frame, shift] of [0, 5, 12, 20, 28].entries()) {
-    const hits = centers.filter((_, index) => index || (frame !== 1 && frame !== 3));
+  for (const [frame, shift] of [0, 5, 12, 20, 28, 35, 41].entries()) {
+    const hits = centers.filter((_, index) => index || (frame >= 3 && frame !== 6));
     hits.push({ ...centers[1], x: centers[1].x + 3 });
-    if (frame >= 3) hits.push({ ...centers[1], x: centers[1].x + 30 });
-    counter.observe(hits, [1, 0, shift, 0, 1, 0, 0, 0, 1], 540, 960);
+    if (frame >= 3) hits.push({ ...centers[1], x: centers[1].x + 30, strong: false });
+    counter.observe(hits, [1, 0, shift, 0, 1, 0, 0, 0, 1], 540, 960, frame * 200);
     counts.push(counter.count);
   }
-  assert.deepEqual(counts, [0, 0, 11, 11, 11]);
+  assert.deepEqual(counts, [0, 0, 10, 10, 10, 11, 11]);
   assert.equal(counter.tracks.length, 11);
 });
 
-test('stays at 11 in a generated sweep with a circular glare and an unalignable frame', { timeout: 20000 }, async () => {
+test('a close candidate that started before its neighbor confirmed cannot be counted twice', () => {
+  const counter = new CounterSweep();
+  const bottom = { x: 180, y: 310, radius: 30, strong: true };
+  const duplicate = { ...bottom, x: 209 };
+  for (let frame = 0; frame < 5; frame++) {
+    const hits = frame === 0 ? [bottom] : [bottom, duplicate];
+    counter.observe(hits, [1, 0, frame * 5, 0, 1, 0, 0, 0, 1], 540, 960, frame * 200);
+  }
+  assert.equal(counter.tracks.length, 2);
+  assert.equal(counter.count, 1);
+});
+
+test('stays at 11 in a generated sweep with glare, a cast shadow and an unalignable frame', { timeout: 20000 }, async () => {
   const { cv } = await loadOpenCv();
   const width = 540, height = 960;
   const gray = value => new cv.Scalar(value, value, value, 255);
@@ -41,13 +53,15 @@ test('stays at 11 in a generated sweep with a circular glare and an unalignable 
       cv.circle(scene, center, 2, gray(65), -1);
     }
     cv.circle(scene, new cv.Point(85, 452), 30, gray(255), -1);
+    cv.circle(scene, new cv.Point(104, 370), 32, gray(87), -1);
+    cv.ellipse(scene, new cv.Point(232, 370), new cv.Size(21, 15), 14, 20, 190, gray(92), 3);
     const counts = [];
     for (let index = 0; index < 5; index++) {
       const moved = new cv.Mat();
       const transform = cv.matFromArray(2, 3, cv.CV_64FC1, [1, 0, 4 * index, 0, 1, 3 * index]);
       try {
         cv.warpAffine(scene, moved, transform, new cv.Size(width, height), cv.INTER_LINEAR, cv.BORDER_REFLECT101);
-        const result = counter.process(moved.data, width, height, options);
+        const result = counter.process(moved.data, width, height, { ...options, time: index * 200 });
         assert.equal(result.aligned, true);
         assert.equal(result.detected, 11);
         counts.push(result.count);

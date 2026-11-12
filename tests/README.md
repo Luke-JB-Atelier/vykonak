@@ -4,7 +4,8 @@ Jádro: `node --test tests/counter-engine.test.cjs`.
 
 Zkušební přejezd: `node --test tests/counter-sweep.test.cjs`. Test ověřuje
 potvrzení pozice z více pohledů, dočasně chybějící detekci, opakovanou značku,
-simulovaný přepal a zachování počtu při výpadku zarovnání.
+simulovaný přepal, stín u spodku i v jeho dutině a zachování počtu při výpadku
+zarovnání.
 
 Přejezd používá oficiální sestavení [OpenCV.js 4.13.0](https://docs.opencv.org/4.13.0/opencv.js)
 z adresáře `vendor`. Worker je načítá při prvním použití tohoto režimu.

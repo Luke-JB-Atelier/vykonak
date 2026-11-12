@@ -1020,6 +1020,14 @@ html {
   font-weight: 700;
 }
 
+.counter-settings .counter-setting-help {
+  display: block;
+  margin-bottom: 4px;
+  color: #315866;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
 .counter-calibrate {
   width: 100%;
   min-height: 52px;
