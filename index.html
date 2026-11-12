@@ -8,10 +8,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Výkoňák">
     <title>Výkoňák</title>
-    <link rel="manifest" href="manifest.webmanifest?v=923">
+    <link rel="manifest" href="manifest.webmanifest?v=924">
     <link rel="icon" href="icon-192.png">
     <link rel="apple-touch-icon" href="icon-192.png">
-    <link rel="stylesheet" href="styles.css?v=923">
+    <link rel="stylesheet" href="styles.css?v=924">
   </head>
   <body>
     <div class="app-shell">
@@ -23,7 +23,7 @@
           <button class="topbar-clear-button" id="resetApp" type="button">Vymazat údaje</button>
         </div>
         <div class="topbar-actions">
-          <span class="app-version">v9.23</span>
+          <span class="app-version">v9.24 test</span>
           <div class="company-mark" aria-label="SOLEA výrobní družstvo">
             <strong>SOLEA</strong>
             <span>výrobní družstvo</span>
@@ -484,6 +484,12 @@
           </div>
         </div>
         <div class="counter-calibration-controls">
+          <label class="counter-separate">
+            <input type="checkbox" id="counterSweep" aria-describedby="counterSweepHint">
+            <span>Počítat spodky přejezdem <small>zkušební</small></span>
+          </label>
+          <p class="counter-privacy" id="counterSweepHint" role="status" hidden></p>
+          <button class="counter-calibrate" id="counterSweepReset" type="button" hidden>Nový přejezd</button>
           <div class="counter-settings">
             <div class="counter-settings-title">
               <strong>Ruční nastavení</strong>
@@ -496,7 +502,7 @@
               <small><span>Méně objektů</span><span>Více objektů</span></small>
             </label>
             <label>
-              <span>Nejmenší velikost kusu</span>
+              <span id="counterSizeLabel">Nejmenší velikost kusu</span>
               <output id="counterSizeValue">35</output>
               <input id="counterSize" type="range" min="10" max="100" value="35">
               <small><span>Menší</span><span>Větší</span></small>
@@ -592,7 +598,7 @@
       </section>
     </div>
 
-    <script src="counter-engine.js?v=923" defer></script>
-    <script src="app.js?v=923" defer></script>
+    <script src="counter-engine.js?v=924" defer></script>
+    <script src="app.js?v=924" defer></script>
   </body>
 </html>

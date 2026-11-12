@@ -2,6 +2,13 @@
 
 Jádro: `node --test tests/counter-engine.test.cjs`.
 
+Zkušební přejezd: `node --test tests/counter-sweep.test.cjs`. Test ověřuje
+potvrzení pozice z více pohledů, dočasně chybějící detekci, opakovanou značku,
+simulovaný přepal a zachování počtu při výpadku zarovnání.
+
+Přejezd používá oficiální sestavení [OpenCV.js 4.13.0](https://docs.opencv.org/4.13.0/opencv.js)
+z adresáře `vendor`. Worker je načítá při prvním použití tohoto režimu.
+
 Pro test kamery spusť místní HTTP server, zpřístupni balíček Playwright v Node
 a nastav `COUNTER_BASE_URL` na adresu aplikace. Případně nastav `EDGE_PATH` na
 prohlížeč Chromium/Edge. Potom spusť `node --test tests/counter-camera.test.cjs`.
