@@ -385,11 +385,16 @@
         const distinct = this.selectBottoms(hits, groupRadius);
         this.observe(distinct, inverse, width, height, time, calibratedSize ? groupRadius : null);
         this.transform = transform;
-        if (!this.reference) this.reference = gray.clone();
-        this.previous?.delete();
-        this.previous = gray;
-        this.previousRegion = region;
-        gray = null;
+        // Do not anchor the sweep to an empty view: featureless paper cannot
+        // support alignment when the camera later reaches the first pieces.
+        // A manually selected work area still uses the original frame coordinates.
+        if (this.reference || workArea || distinct.length) {
+          if (!this.reference) this.reference = gray.clone();
+          this.previous?.delete();
+          this.previous = gray;
+          this.previousRegion = region;
+          gray = null;
+        }
         const components = this.tracks.filter(track => track.confirmed && track.visible).map(track => {
           const { x, y } = project(track.center, inverse);
           const localScale = Math.sqrt(areaScale(track.center, inverse));
