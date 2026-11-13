@@ -16,6 +16,12 @@ test('rejects a warped work area while allowing ordinary camera movement', () =>
   assert.equal(sweepRegion(960, 718, collapsed), null);
 });
 
+test('the selected table area follows a sweep in reference coordinates', () => {
+  const workArea = [{ x: 70, y: 200 }, { x: 350, y: 200 }, { x: 350, y: 400 }, { x: 70, y: 400 }];
+  const shift = [1, 0, 14, 0, 1, -8, 0, 0, 1];
+  assert.deepEqual(sweepRegion(540, 960, shift, workArea), workArea.map(({ x, y }) => ({ x: x + 14, y: y - 8 })));
+});
+
 test('counts a confirmed position once across intermittent detections', () => {
   const counter = new CounterSweep();
   const centers = Array.from({ length: 11 }, (_, index) => ({

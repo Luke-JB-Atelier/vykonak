@@ -164,6 +164,8 @@
     counterSweepHint: document.querySelector("#counterSweepHint"),
     counterSweepReset: document.querySelector("#counterSweepReset"),
     counterReview: document.querySelector("#counterReview"),
+    counterArea: document.querySelector("#counterArea"),
+    counterClearArea: document.querySelector("#counterClearArea"),
     counterCamera: document.querySelector("#counterCamera"),
     counterCameraControl: document.querySelector("#counterCameraControl"),
     counterRenameCamera: document.querySelector("#counterRenameCamera"),
@@ -212,6 +214,8 @@
   let counterCalibrationMode = false;
   let counterCalibrationCenter = null;
   let counterReviewMode = false;
+  let counterAreaSelection = null;
+  let counterWorkArea = null;
   let counterLatestFrame = null;
   let counterCameraGeneration = 0;
   let counterCameraId = "";
@@ -423,11 +427,13 @@
   els.counterClose.addEventListener("click", closePieceCounter);
   els.counterSheet.querySelector("[data-counter-close]").addEventListener("click", closePieceCounter);
   els.counterCalibrate?.addEventListener("click", toggleCounterCalibration);
-  els.counterCanvas.addEventListener("pointerdown", handleCounterCalibrationTap);
+  els.counterCanvas.addEventListener("pointerdown", handleCounterCanvasTap);
   els.counterSensitivity?.addEventListener("input", handleCounterSettingsChange);
   els.counterSize?.addEventListener("input", handleCounterSettingsChange);
-  els.counterSweepReset?.addEventListener("click", restartCounterSweep);
+  els.counterSweepReset?.addEventListener("click", () => restartCounterSweep());
   els.counterReview.addEventListener("click", toggleCounterReview);
+  els.counterArea.addEventListener("click", toggleCounterArea);
+  els.counterClearArea.addEventListener("click", () => restartCounterSweep(null));
   els.counterResolution.addEventListener("change", changeCounterResolution);
   els.counterCamera.addEventListener("change", () => {
     counterCameraId = els.counterCamera.value;
@@ -488,7 +494,7 @@
     });
     window.addEventListener("load", () => {
       navigator.serviceWorker
-        .register("sw.js?v=933", { updateViaCache: "none" })
+        .register("sw.js?v=934", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
       updateInstallButtons();
@@ -687,13 +693,13 @@
     counterFrameCanvas.height = counterMeasuredCanvas.height = 1;
     els.counterCanvas.width = els.counterCanvas.height = 1;
     counterReviewMode = false;
+    counterAreaSelection = counterWorkArea = null;
     setCounterCalibrationMode(false);
   }
 
   function counterLiveLoop(time) {
     if (!counterStream || els.counterSheet.hidden) return;
-    // The browser displays the live video while one frame is being analysed.
-    if (!counterCalibrationMode && !counterReviewMode && !counterDetectionBusy && !counterDetectionFailed &&
+    if (!counterCalibrationMode && !counterReviewMode && !counterAreaSelection && !counterDetectionBusy && !counterDetectionFailed &&
         time - counterLastFrameAt >= 100 && els.counterVideo.readyState >= 2 &&
         els.counterVideo.currentTime !== counterLastVideoTime) {
       counterLastFrameAt = time;
@@ -714,14 +720,28 @@
     setCounterCalibrationMode(false);
   }
 
-  function restartCounterSweep() {
+  function toggleCounterArea() {
+    if (!counterLatestFrame) return;
+    counterAreaSelection = counterAreaSelection ? null : { corner: null };
+    counterReviewMode = false;
+    setCounterCalibrationMode(false);
+    if (counterAreaSelection) els.counterStage.scrollIntoView({ block: "center", behavior: "smooth" });
+  }
+
+  function restartCounterSweep(workArea = counterWorkArea && (counterLatestFrame?.region ?? counterWorkArea)) {
     resetCounterWorker();
     counterLatestFrame = null;
     counterBaseCount = counterManualCorrection = 0;
     counterReviewMode = false;
+    counterAreaSelection = null;
+    counterWorkArea = workArea;
     setCounterCalibrationMode(false);
-    els.counterSweepHint.textContent = "Spodky otoč dutinou nahoru a pomalu přejeď kamerou přes skupinu.";
+    els.counterSweepHint.textContent = counterWorkArea
+      ? "Počítám ve vybrané ploše. Pomalu přejeď kamerou přes skupinu."
+      : "Spodky otoč dutinou nahoru a pomalu přejeď kamerou přes skupinu.";
     updateCounterCount();
+    // Start in the coordinates of the exact frame on which the area was selected.
+    if (counterWorkArea) analyseCounterSource(counterMeasuredCanvas);
   }
 
   function setCounterCalibrationMode(active) {
@@ -731,10 +751,13 @@
       counterReviewMode = false;
       els.counterStage.scrollIntoView({ block: "center", behavior: "smooth" });
     }
-    els.counterLiveBadge.textContent = active ? "Kalibrace" : counterReviewMode ? "Kontrola" : "Přejezd";
-    els.counterCalibrationHint.textContent = "1. Klepni na střed dutiny jednoho spodku.";
+    els.counterLiveBadge.textContent = counterAreaSelection ? "Plocha" : active ? "Kalibrace" : counterReviewMode ? "Kontrola" : "Přejezd";
+    els.counterCalibrationHint.textContent = counterAreaSelection
+      ? "1. Klepni na jeden roh plochy se spodky."
+      : "1. Klepni na střed dutiny jednoho spodku.";
     els.counterStage.classList.toggle("is-calibrating", counterCalibrationMode);
-    els.counterCalibrationHint.hidden = !counterCalibrationMode;
+    els.counterStage.classList.toggle("is-selecting-area", Boolean(counterAreaSelection));
+    els.counterCalibrationHint.hidden = !counterCalibrationMode && !counterAreaSelection;
     els.counterReview.textContent = counterReviewMode ? "Pokračovat v přejezdu" : "Zkontrolovat značky";
     els.counterReview.setAttribute("aria-pressed", String(counterReviewMode));
     updateCounterCalibrationButton();
@@ -744,8 +767,13 @@
 
   function updateCounterCalibrationButton() {
     const calibrated = counterSweepRadius !== null;
-    els.counterCalibrate.disabled = !counterLatestFrame;
-    els.counterReview.disabled = !counterLatestFrame || counterCalibrationMode;
+    els.counterCalibrate.disabled = !counterLatestFrame || Boolean(counterAreaSelection);
+    els.counterReview.disabled = !counterLatestFrame || counterCalibrationMode || Boolean(counterAreaSelection);
+    els.counterArea.disabled = !counterLatestFrame || counterCalibrationMode;
+    els.counterArea.setAttribute("aria-pressed", String(Boolean(counterAreaSelection)));
+    els.counterArea.classList.toggle("is-active", Boolean(counterAreaSelection));
+    els.counterArea.textContent = counterAreaSelection ? "Zrušit výběr" : counterWorkArea ? "Upravit plochu" : "Vymezit plochu";
+    els.counterClearArea.hidden = !counterWorkArea || Boolean(counterAreaSelection);
     els.counterCalibrate.classList.toggle("is-active", counterCalibrationMode);
     els.counterCalibrate.classList.toggle("is-calibrated", calibrated && !counterCalibrationMode);
     els.counterCalibrate.textContent = counterCalibrationMode
@@ -755,8 +783,8 @@
         : "Kalibrovat podle jednoho kusu";
   }
 
-  function handleCounterCalibrationTap(event) {
-    if (!counterCalibrationMode || !counterLatestFrame) return;
+  function handleCounterCanvasTap(event) {
+    if ((!counterCalibrationMode && !counterAreaSelection) || !counterLatestFrame) return;
     event.preventDefault();
     const rect = els.counterCanvas.getBoundingClientRect();
     const contentScale = Math.min(rect.width / els.counterCanvas.width, rect.height / els.counterCanvas.height);
@@ -770,6 +798,23 @@
 
     const frameX = Math.round(canvasX * counterLatestFrame.width / els.counterCanvas.width);
     const frameY = Math.round(canvasY * counterLatestFrame.height / els.counterCanvas.height);
+    if (counterAreaSelection) {
+      const { corner } = counterAreaSelection;
+      if (!corner) {
+        counterAreaSelection.corner = { x: frameX, y: frameY };
+        drawCounterCalibrationPoint(els.counterCanvas.getContext("2d"), { x: canvasX, y: canvasY });
+        els.counterCalibrationHint.textContent = "2. Klepni na protější roh. Stojan nech vně plochy.";
+        return;
+      }
+      const left = Math.min(corner.x, frameX), right = Math.max(corner.x, frameX);
+      const top = Math.min(corner.y, frameY), bottom = Math.max(corner.y, frameY);
+      if (right - left < .08 * counterLatestFrame.width || bottom - top < .08 * counterLatestFrame.height) {
+        els.counterCalibrationHint.textContent = "Zvol vzdálenější protější roh, aby se do plochy vešly všechny spodky.";
+        return;
+      }
+      restartCounterSweep([{ x:left, y:top }, { x:right, y:top }, { x:right, y:bottom }, { x:left, y:bottom }]);
+      return;
+    }
     if (!counterCalibrationCenter) {
       counterCalibrationCenter = { x: frameX, y: frameY };
       drawCounterCalibrationPoint(els.counterCanvas.getContext("2d"), { x: canvasX, y: canvasY });
@@ -874,7 +919,7 @@
     const outputWidth = Math.max(1, Math.round(sourceWidth * outputScale));
     const outputHeight = Math.max(1, Math.round(sourceHeight * outputScale));
     const inputSize = `${outputWidth}x${outputHeight}`;
-    if (counterInputSize && counterInputSize !== inputSize) restartCounterSweep();
+    if (counterInputSize && counterInputSize !== inputSize) restartCounterSweep(null);
     counterInputSize = inputSize;
     if (counterFrameCanvas.width !== outputWidth || counterFrameCanvas.height !== outputHeight) {
       counterFrameCanvas.width = outputWidth;
@@ -905,14 +950,14 @@
     }
     try {
       if (!counterDetectorWorker) {
-        const worker = new Worker("counter-worker.js?v=933");
+        const worker = new Worker("counter-worker.js?v=934");
         counterDetectorWorker = worker;
         worker.onmessage = ({data}) => {
           if (counterDetectorWorker !== worker) return;
           clearTimeout(counterDetectionTimer);
           counterDetectionBusy = false;
           if (data.error) { failed(); return; }
-          if (counterStream && !els.counterSheet.hidden && !counterReviewMode && !counterCalibrationMode) {
+          if (counterStream && !els.counterSheet.hidden && !counterReviewMode && !counterCalibrationMode && !counterAreaSelection) {
             showCounterDetection(data);
           }
         };
@@ -924,6 +969,7 @@
         sensitivity: Number(els.counterSensitivity.value),
         radiusRatio: counterSweepRadius ?? .035 * Number(els.counterSize.value) / 35,
         calibratedSize: counterSweepRadius !== null,
+        workArea: counterWorkArea,
         time: performance.now()
       }, [pixels.buffer]);
       counterDetectionTimer = setTimeout(failed, 25000);
@@ -938,7 +984,7 @@
     }
     const outputContext = output.getContext("2d");
     outputContext.drawImage(source, 0, 0);
-    if (!counterCalibrationMode) {
+    if (!counterCalibrationMode && !counterAreaSelection) {
       if (region) drawCounterRegion(outputContext, region);
       drawCounterComponents(outputContext, components);
     }

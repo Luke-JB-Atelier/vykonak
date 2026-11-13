@@ -969,6 +969,10 @@ html {
   gap: 7px;
 }
 
+.counter-area-actions button:first-child { grid-column: 1 / -1; }
+.counter-area-actions:has(#counterClearArea:not([hidden])) button:first-child { grid-column: auto; }
+.counter-area-actions button[hidden] { display: none; }
+
 .counter-settings {
   display: grid;
   gap: 5px;
@@ -1168,7 +1172,8 @@ html {
   font-size: 0.76rem;
 }
 
-.counter-stage.is-calibrating canvas {
+.counter-stage.is-calibrating canvas,
+.counter-stage.is-selecting-area canvas {
   cursor: crosshair;
   touch-action: none;
   pointer-events: auto;

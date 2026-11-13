@@ -89,9 +89,9 @@
     return ((right.x - origin.x) * (down.y - origin.y) - (right.y - origin.y) * (down.x - origin.x)) / 400;
   }
 
-  function sweepRegion(width, height, inverse) {
+  function sweepRegion(width, height, inverse, workArea = null) {
     const corners = [[.07, .12], [.93, .12], [.93, .88], [.07, .88]];
-    const points = corners.map(([x, y]) => ({ x: x * width, y: y * height }));
+    const points = workArea ?? corners.map(([x, y]) => ({ x: x * width, y: y * height }));
     const projected = points.map(point => project(point, inverse));
     if (projected.some(point => !Number.isFinite(point.x) || !Number.isFinite(point.y))) return null;
 
@@ -145,11 +145,20 @@
     return typical === null || (radius >= .69 * typical && radius <= 1.35 * typical);
   }
 
-  function trackFrame(cv, previous, current) {
+  function trackFrame(cv, previous, current, region = null) {
     const points = new cv.Mat(), forward = new cv.Mat(), back = new cv.Mat();
     const found = new cv.Mat(), returned = new cv.Mat(), error = new cv.Mat();
+    let areaMask, polygon;
     try {
-      cv.goodFeaturesToTrack(previous, points, 500, .012, 5);
+      if (region) {
+        areaMask = cv.Mat.zeros(previous.rows, previous.cols, cv.CV_8UC1);
+        polygon = cv.matFromArray(region.length, 1, cv.CV_32SC2,
+          region.flatMap(point => [Math.round(point.x), Math.round(point.y)]));
+        cv.fillConvexPoly(areaMask, polygon, new cv.Scalar(255));
+        cv.goodFeaturesToTrack(previous, points, 500, .012, 5, areaMask);
+      } else {
+        cv.goodFeaturesToTrack(previous, points, 500, .012, 5);
+      }
       if (points.rows < 12) return null;
       cv.calcOpticalFlowPyrLK(previous, current, points, forward, found, error);
       cv.calcOpticalFlowPyrLK(current, previous, forward, back, returned, error);
@@ -186,6 +195,7 @@
         homography?.delete(); from.delete(); to.delete(); mask.delete();
       }
     } finally {
+      areaMask?.delete(); polygon?.delete();
       points.delete(); forward.delete(); back.delete(); found.delete(); returned.delete(); error.delete();
     }
   }
@@ -340,7 +350,7 @@
       });
     }
 
-    process(pixels, width, height, { radiusRatio, sensitivity, calibratedSize = false, time = performance.now() }) {
+    process(pixels, width, height, { radiusRatio, sensitivity, calibratedSize = false, workArea = null, time = performance.now() }) {
       const cv = this.cv;
       const paused = { components: [], count: this.count, aligned: false };
       if (this.previous && (this.previous.cols !== width || this.previous.rows !== height)) return paused;
@@ -350,15 +360,15 @@
         cv.cvtColor(rgba, gray, cv.COLOR_RGBA2GRAY);
         let transform = this.transform;
         if (this.previous) {
-          const relative = trackFrame(cv, this.previous, gray);
+          const relative = trackFrame(cv, this.previous, gray, workArea ? this.previousRegion : null);
           transform = relative && multiply(transform, relative);
         }
         let inverse = transform && invert(transform);
-        let region = inverse && sweepRegion(width, height, inverse);
+        let region = inverse && sweepRegion(width, height, inverse, workArea);
         if (!region && this.reference) {
-          transform = trackFrame(cv, this.reference, gray);
+          transform = trackFrame(cv, this.reference, gray, workArea);
           inverse = transform && invert(transform);
-          region = inverse && sweepRegion(width, height, inverse);
+          region = inverse && sweepRegion(width, height, inverse, workArea);
         }
         if (!region) return paused;
         const scale = Math.sqrt(areaScale({ x: width / 2, y: height / 2 }, inverse));
@@ -378,6 +388,7 @@
         if (!this.reference) this.reference = gray.clone();
         this.previous?.delete();
         this.previous = gray;
+        this.previousRegion = region;
         gray = null;
         const components = this.tracks.filter(track => track.confirmed && track.visible).map(track => {
           const { x, y } = project(track.center, inverse);

@@ -208,6 +208,29 @@ test('counter starts the sweep directly and shows the markers on the frame it me
     await page.evaluate(()=>{window.sweepPieces=2;window.sweepShift=20;});
     await page.waitForTimeout(650);
     assert.equal(await page.locator('#counterCount').textContent(),'3');
+    await page.evaluate(()=>{window.sweepPieces=3;});
+    await page.waitForFunction(()=>document.querySelector('#counterSweepHint').textContent.includes('3 možných spodků'));
+    await page.locator('#counterArea').click();
+    assert.equal(await page.locator('#counterLiveBadge').textContent(),'Plocha');
+    assert.equal(await page.locator('#counterReview').isEnabled(),false);
+    const areaCoords=await page.locator('#counterCanvas').evaluate(canvas=>{
+      const rect=canvas.getBoundingClientRect();
+      const scale=Math.min(rect.width/canvas.width,rect.height/canvas.height);
+      return {x:rect.x+(rect.width-canvas.width*scale)/2,y:rect.y+(rect.height-canvas.height*scale)/2,scale};
+    });
+    await page.touchscreen.tap(areaCoords.x+80*areaCoords.scale,areaCoords.y+150*areaCoords.scale);
+    await page.touchscreen.tap(areaCoords.x+275*areaCoords.scale,areaCoords.y+275*areaCoords.scale);
+    await page.waitForFunction(()=>document.querySelector('#counterSweepHint').textContent.includes('2 možných spodků'));
+    await page.locator('#counterSweepReset').click();
+    await page.waitForFunction(()=>document.querySelector('#counterSweepHint').textContent.includes('2 možných spodků'));
+    for(const shift of [24,29,35,40]){
+      await page.evaluate(offset=>{window.sweepShift=offset;},shift);
+      await page.waitForTimeout(300);
+    }
+    await page.waitForFunction(()=>document.querySelector('#counterCount').textContent==='2',null,{timeout:6000});
+    await page.evaluate(()=>{window.sweepShift=20;});
+    await page.locator('#counterClearArea').click();
+    await page.waitForFunction(()=>document.querySelector('#counterSweepHint').textContent.includes('3 možných spodků'),null,{timeout:6000});
     await page.evaluate(()=>{window.sweepSource.height=600;});
     await page.waitForFunction(()=>window.sweepAnalysisSizes.at(-1)?.[1]===600);
     await page.waitForFunction(()=>document.querySelector('#counterCount').textContent==='0');
