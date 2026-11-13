@@ -88,7 +88,7 @@ test('chooses the exact camera when two webcams have the same name and remembers
   } finally { await browser.close(); }
 });
 
-test('live video keeps moving while the counter spaces out measurements and reviews the measured frame',
+test('live video keeps moving and a short sweep still confirms the measured pieces',
   {skip:!process.env.COUNTER_BASE_URL,timeout:55000},async()=>{
   const {chromium}=require('playwright');
   const browser=await chromium.launch({headless:true,...(process.env.EDGE_PATH?{executablePath:process.env.EDGE_PATH}:{})});
@@ -104,8 +104,9 @@ test('live video keeps moving while the counter spaces out measurements and revi
       window.sweepWorkerDelay=0;
       window.sweepInFlight=0;
       window.sweepWorkerResults=0;
-      window.sweepWorkerFinishedAt=null;
+      window.sweepWorkerStartedAt=null;
       window.sweepWorkerGaps=[];
+      window.sweepShortMotion=null;
       window.sweepMaxInFlight=0;
       window.sweepCalibrationFlags=[];
       window.sweepAnalysisSizes=[];
@@ -117,20 +118,22 @@ test('live video keeps moving while the counter spaces out measurements and revi
             if(this.ended)return;
             window.sweepInFlight--;
             window.sweepWorkerResults++;
-            window.sweepWorkerFinishedAt=performance.now();
+            if(window.sweepShortMotion?.startedAt===null)window.sweepShortMotion.startedAt=performance.now();
             this.onmessage?.(event);
           },window.sweepWorkerDelay);
           this.native.onerror=event=>this.onerror?.(event);
         }
         postMessage(...args){
-          if(window.sweepWorkerFinishedAt!==null)window.sweepWorkerGaps.push(performance.now()-window.sweepWorkerFinishedAt);
+          const startedAt=performance.now();
+          if(window.sweepWorkerStartedAt!==null)window.sweepWorkerGaps.push(startedAt-window.sweepWorkerStartedAt);
+          window.sweepWorkerStartedAt=startedAt;
           window.sweepInFlight++;
           window.sweepMaxInFlight=Math.max(window.sweepMaxInFlight,window.sweepInFlight);
           window.sweepCalibrationFlags.push(args[0].calibratedSize);
           window.sweepAnalysisSizes.push([args[0].width,args[0].height]);
           this.native.postMessage(...args);
         }
-        terminate(){this.ended=true;window.sweepInFlight=0;window.sweepWorkerFinishedAt=null;this.native.terminate();}
+        terminate(){this.ended=true;window.sweepInFlight=0;window.sweepWorkerStartedAt=null;this.native.terminate();}
       };
       navigator.mediaDevices.getUserMedia=async constraints=>{
         window.sweepCameraRequests.push(constraints.video);
@@ -152,7 +155,11 @@ test('live video keeps moving while the counter spaces out measurements and revi
           ctx.setTransform(scale,0,0,scale,0,0);
           ctx.fillStyle='#bcbcbc';
           ctx.fillRect(0,0,source.width/scale,source.height/scale);
-          for(const [x,y] of [[115,190],[220,229],[298,173]].slice(0,window.sweepPieces)){
+          const motion=window.sweepShortMotion;
+          const elapsed=motion?.startedAt==null?0:performance.now()-motion.startedAt;
+          if(motion)window.sweepShift=Math.min(18,elapsed*.023);
+          const pieces=elapsed<850?window.sweepPieces:0;
+          for(const [x,y] of [[115,190],[220,229],[298,173]].slice(0,pieces)){
             circle(x,y,22,104);
             circle(x,y,19,226);
             circle(x,y,14,158);
@@ -191,12 +198,12 @@ test('live video keeps moving while the counter spaces out measurements and revi
       return video.currentTime>start && window.sweepInFlight===1;
     }),true);
     await page.evaluate(()=>{window.sweepWorkerDelay=0;});
-    await page.waitForFunction(()=>window.sweepInFlight===0);
-    for(const shift of [4,8,12,16]){
-      const results=await page.evaluate(offset=>{window.sweepShift=offset;return window.sweepWorkerResults;},shift);
-      await page.waitForFunction(results=>window.sweepWorkerResults>=results+2,results);
-    }
-    await page.waitForFunction(()=>document.querySelector('#counterCount').textContent==='3',null,{timeout:6000});
+    await page.evaluate(()=>{
+      window.sweepShortMotion={startedAt:null};
+      document.querySelector('#counterSweepReset').click();
+    });
+    await page.waitForFunction(()=>document.querySelector('#counterCount').textContent==='3',null,{timeout:8000});
+    await page.evaluate(()=>{window.sweepShortMotion=null;});
     await page.locator('#counterReview').click();
     assert.equal(await page.locator('#counterCanvas').evaluate(canvas=>{
       const pixels=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
@@ -274,7 +281,8 @@ test('live video keeps moving while the counter spaces out measurements and revi
     assert.equal(await page.evaluate(()=>window.sweepMaxInFlight),1);
     const gaps=await page.evaluate(()=>window.sweepWorkerGaps);
     assert.ok(gaps.length>5);
-    assert.ok(gaps.every(gap=>gap>=445),JSON.stringify(gaps));
+    assert.ok(gaps.every(gap=>gap>=95),JSON.stringify(gaps));
+    assert.ok(gaps.some(gap=>gap<450),JSON.stringify(gaps));
     assert.deepEqual(errors,[]);
     assert.ok(requests.some(request=>request.url().includes('vendor/opencv-4.13.0.js')));
     assert.ok(requests.every(request=>request.method()==='GET' && new URL(request.url()).origin===new URL(process.env.COUNTER_BASE_URL).origin));

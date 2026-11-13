@@ -3,7 +3,7 @@
   const RECORDS_KEY = "vykonak-denni-zaznamy-v1";
   const CALC_VIBRATION_KEY = "vykonak-calculator-vibration";
   const COUNTER_SETTINGS_KEY = "vykonak-counter-settings-v1";
-  const COUNTER_MEASUREMENT_PAUSE_MS = 450;
+  const COUNTER_MEASUREMENT_INTERVAL_MS = 100;
   const COUNTER_CAMERA_PRESETS = {
     light: { width: 800, height: 600, frameRate: 24, analysis: 800 },
     balanced: { width: 1280, height: 960, frameRate: 30, analysis: 960 },
@@ -495,7 +495,7 @@
     });
     window.addEventListener("load", () => {
       navigator.serviceWorker
-        .register("sw.js?v=935", { updateViaCache: "none" })
+        .register("sw.js?v=936", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
       updateInstallButtons();
@@ -919,6 +919,7 @@
     const inputSize = `${outputWidth}x${outputHeight}`;
     if (counterInputSize && counterInputSize !== inputSize) restartCounterSweep(null);
     counterInputSize = inputSize;
+    counterNextFrameAt = performance.now() + COUNTER_MEASUREMENT_INTERVAL_MS;
     if (counterFrameCanvas.width !== outputWidth || counterFrameCanvas.height !== outputHeight) {
       counterFrameCanvas.width = outputWidth;
       counterFrameCanvas.height = outputHeight;
@@ -949,14 +950,13 @@
     }
     try {
       if (!counterDetectorWorker) {
-        const worker = new Worker("counter-worker.js?v=935");
+        const worker = new Worker("counter-worker.js?v=936");
         counterDetectorWorker = worker;
         worker.onmessage = ({data}) => {
           if (counterDetectorWorker !== worker) return;
           clearTimeout(counterDetectionTimer);
           counterDetectionBusy = false;
           if (data.error) { failed(); return; }
-          counterNextFrameAt = performance.now() + COUNTER_MEASUREMENT_PAUSE_MS;
           if (counterStream && !els.counterSheet.hidden && !counterReviewMode && !counterCalibrationMode && !counterAreaSelection) {
             showCounterDetection(data);
           }
