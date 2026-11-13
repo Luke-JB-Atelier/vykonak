@@ -145,6 +145,20 @@
     return typical === null || (radius >= .69 * typical && radius <= 1.35 * typical);
   }
 
+  function hasSmoothBackground(gray) {
+    const { cols, rows, data } = gray;
+    let samples = 0, textured = 0;
+    for (let y = Math.floor(rows / 8); y < 7 * rows / 8 && y + 3 < rows; y += 8) {
+      for (let x = Math.floor(cols / 8); x < 7 * cols / 8 && x + 3 < cols; x += 8) {
+        const index = y * cols + x;
+        textured += Number(Math.max(Math.abs(data[index] - data[index + 3]),
+          Math.abs(data[index] - data[index + 3 * cols])) > 6);
+        samples++;
+      }
+    }
+    return textured < .23 * samples;
+  }
+
   function trackFrame(cv, previous, current, region = null) {
     const points = new cv.Mat(), forward = new cv.Mat(), back = new cv.Mat();
     const found = new cv.Mat(), returned = new cv.Mat(), error = new cv.Mat();
@@ -373,17 +387,22 @@
         if (!region) return paused;
         const scale = Math.sqrt(areaScale({ x: width / 2, y: height / 2 }, inverse));
         if (!(scale >= .4 && scale <= 2.5)) return paused;
-        const radius = Math.max(width, height) * radiusRatio * scale;
-        const low = Math.max(5, Math.round(.65 * radius));
-        const high = Math.max(low + 1, Math.round(1.33 * radius));
-        const hits = findBottoms(cv, gray, region, low, high, sensitivity).map(hit => {
+        const confirmed = this.tracks.filter(track => track.confirmed);
+        const groupRadius = typicalRadius(confirmed.map(track => ({ ...track.center, strong: true })));
+        const automaticSize = radiusRatio === undefined && hasSmoothBackground(gray);
+        const radius = (automaticSize && groupRadius !== null
+          ? groupRadius : Math.max(width, height) * (radiusRatio ?? .035)) * scale;
+        // Search a wider range until the sweep has confirmed a common size.
+        const estimatingSize = automaticSize && groupRadius === null;
+        const low = Math.max(5, Math.round((estimatingSize ? .58 : .65) * radius));
+        const high = Math.max(low + 1, Math.round((estimatingSize ? 1.4 : 1.33) * radius));
+        const frameSensitivity = sensitivity ?? (automaticSize ? 65 : 55);
+        const hits = findBottoms(cv, gray, region, low, high, frameSensitivity).map(hit => {
           const localScale = Math.sqrt(areaScale(hit, transform));
           return { ...hit, ...project(hit, transform), radius: hit.radius * localScale };
         }).filter(hit => Number.isFinite(hit.x) && Number.isFinite(hit.y) && Number.isFinite(hit.radius));
-        const confirmed = this.tracks.filter(track => track.confirmed).map(track => ({ ...track.center, strong: true }));
-        const groupRadius = typicalRadius(confirmed);
         const distinct = this.selectBottoms(hits, groupRadius);
-        this.observe(distinct, inverse, width, height, time, calibratedSize ? groupRadius : null);
+        this.observe(distinct, inverse, width, height, time, calibratedSize || automaticSize ? groupRadius : null);
         this.transform = transform;
         // Do not anchor the sweep to an empty view: featureless paper cannot
         // support alignment when the camera later reaches the first pieces.
@@ -395,13 +414,18 @@
           this.previousRegion = region;
           gray = null;
         }
-        const components = this.tracks.filter(track => track.confirmed && track.visible).map(track => {
+        const visibleConfirmed = this.tracks.filter(track => track.confirmed && track.visible);
+        const components = visibleConfirmed.map(track => {
           const { x, y } = project(track.center, inverse);
           const localScale = Math.sqrt(areaScale(track.center, inverse));
           const radius = track.center.radius * (Number.isFinite(localScale) && localScale > 0 ? localScale : scale);
           return { centerX: x, centerY: y, width: 2 * radius, height: 2 * radius, label: track.number };
         });
-        return { components, count: this.count, aligned: true, region, detected: distinct.length };
+        const candidates = distinct.filter(hit => !visibleConfirmed.some(track => bottomsOverlap(hit, track.center))).map(hit => {
+          const { x, y } = project(hit, inverse);
+          return { centerX: x, centerY: y };
+        });
+        return { components, candidates, count: this.count, aligned: true, region, detected: distinct.length };
       } finally {
         gray?.delete();
         rgba.delete();

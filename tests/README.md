@@ -12,8 +12,8 @@ Pro test kamery spusť místní HTTP server, zpřístupni balíček Playwright v
 a nastav `COUNTER_BASE_URL` na adresu aplikace. Případně nastav `EDGE_PATH` na
 prohlížeč Chromium/Edge. Potom spusť `node --test tests/counter-camera.test.cjs`.
 Bez `COUNTER_BASE_URL` se test kamery přeskočí. Používá generovaný kamerový tok,
-včetně uměle pomalého workeru. Ověřuje živý vstup kamery, jediný rozpracovaný
-snímek, značky ve zpracovaném obraze, kalibraci a přepnutí rozlišení.
+včetně uměle pomalého workeru. Ověřuje spuštění jediným tlačítkem, živý vstup
+kamery, jediný rozpracovaný snímek, průběžné značky a přepnutí rozlišení.
 
 ## Výsledky dřívějšího počítadla z verze 9.23
 

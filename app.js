@@ -155,18 +155,12 @@
     counterClose: document.querySelector("#counterClose"),
     counterVideo: document.querySelector("#counterVideo"),
     counterCanvas: document.querySelector("#counterCanvas"),
-    counterStage: document.querySelector("#counterStage"),
     counterEmpty: document.querySelector("#counterEmpty"),
     counterEmptyTitle: document.querySelector("#counterEmptyTitle"),
     counterEmptyText: document.querySelector("#counterEmptyText"),
     counterLiveBadge: document.querySelector("#counterLiveBadge"),
-    counterCalibrate: document.querySelector("#counterCalibrate"),
-    counterCalibrationHint: document.querySelector("#counterCalibrationHint"),
     counterSweepHint: document.querySelector("#counterSweepHint"),
     counterSweepReset: document.querySelector("#counterSweepReset"),
-    counterReview: document.querySelector("#counterReview"),
-    counterArea: document.querySelector("#counterArea"),
-    counterClearArea: document.querySelector("#counterClearArea"),
     counterCamera: document.querySelector("#counterCamera"),
     counterCameraControl: document.querySelector("#counterCameraControl"),
     counterRenameCamera: document.querySelector("#counterRenameCamera"),
@@ -175,10 +169,6 @@
     counterCancelCameraName: document.querySelector("#counterCancelCameraName"),
     counterResolution: document.querySelector("#counterResolution"),
     counterResolutionActual: document.querySelector("#counterResolutionActual"),
-    counterSensitivity: document.querySelector("#counterSensitivity"),
-    counterSensitivityValue: document.querySelector("#counterSensitivityValue"),
-    counterSize: document.querySelector("#counterSize"),
-    counterSizeValue: document.querySelector("#counterSizeValue"),
     counterMinus: document.querySelector("#counterMinus"),
     counterPlus: document.querySelector("#counterPlus"),
     counterCorrectedCount: document.querySelector("#counterCorrectedCount"),
@@ -209,15 +199,9 @@
   let counterStream = null;
   let counterAnimationFrame = 0;
   let counterNextFrameAt = 0;
+  let counterSweepActive = false;
   let counterBaseCount = 0;
   let counterManualCorrection = 0;
-  let counterSweepRadius = null;
-  let counterCalibrationMode = false;
-  let counterCalibrationCenter = null;
-  let counterReviewMode = false;
-  let counterAreaSelection = null;
-  let counterWorkArea = null;
-  let counterLatestFrame = null;
   let counterCameraGeneration = 0;
   let counterCameraId = "";
   const counterCameraNames = new Map();
@@ -228,8 +212,7 @@
   let counterDetectionFailed = false;
   let counterInputSize = "";
   let counterDetectionTimer = null;
-  let counterFrameCanvas = document.createElement("canvas");
-  let counterMeasuredCanvas = document.createElement("canvas");
+  const counterFrameCanvas = document.createElement("canvas");
 
   document.querySelector("#addPerson").addEventListener("click", () => {
     state.people.push({
@@ -427,14 +410,7 @@
   els.openPieceCounter.addEventListener("click", openPieceCounter);
   els.counterClose.addEventListener("click", closePieceCounter);
   els.counterSheet.querySelector("[data-counter-close]").addEventListener("click", closePieceCounter);
-  els.counterCalibrate?.addEventListener("click", toggleCounterCalibration);
-  els.counterCanvas.addEventListener("pointerdown", handleCounterCanvasTap);
-  els.counterSensitivity?.addEventListener("input", handleCounterSettingsChange);
-  els.counterSize?.addEventListener("input", handleCounterSettingsChange);
-  els.counterSweepReset?.addEventListener("click", () => restartCounterSweep());
-  els.counterReview.addEventListener("click", toggleCounterReview);
-  els.counterArea.addEventListener("click", toggleCounterArea);
-  els.counterClearArea.addEventListener("click", () => restartCounterSweep(null));
+  els.counterSweepReset.addEventListener("click", restartCounterSweep);
   els.counterResolution.addEventListener("change", changeCounterResolution);
   els.counterCamera.addEventListener("change", () => {
     counterCameraId = els.counterCamera.value;
@@ -495,7 +471,7 @@
     });
     window.addEventListener("load", () => {
       navigator.serviceWorker
-        .register("sw.js?v=937", { updateViaCache: "none" })
+        .register("sw.js?v=938", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
       updateInstallButtons();
@@ -509,11 +485,6 @@
   restoreCalculation();
 
   async function openPieceCounter() {
-    counterBaseCount = 0;
-    counterManualCorrection = 0;
-    counterSweepRadius = null;
-    counterLatestFrame = null;
-    updateCounterCount();
     els.counterSheet.hidden = false;
     document.body.style.overflow = "hidden";
     await startCounterCamera();
@@ -535,11 +506,6 @@
     setCounterEmpty("Spouštím fotoaparát…", "Povol přístup ke kameře.");
     els.counterSweepHint.textContent = "Počítadlo se připravuje.";
     els.counterLiveBadge.hidden = true;
-    if (els.counterCalibrate) {
-      els.counterCalibrate.disabled = true;
-      els.counterCalibrate.textContent = "Kalibrace se připravuje…";
-    }
-
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       setCounterCameraUnavailable();
       return;
@@ -576,8 +542,8 @@
       els.counterLiveBadge.hidden = false;
       updateCounterResolutionActual();
       void updateCounterCameras(generation);
-      updateCounterCalibrationButton();
-      els.counterSweepHint.textContent = "Spodky otoč dutinou nahoru a pomalu přejeď kamerou přes skupinu.";
+      els.counterSweepReset.disabled = false;
+      els.counterSweepHint.textContent = "Namiř kameru na spodky a klepni na Spočítat spodky.";
       counterAnimationFrame = requestAnimationFrame(counterLiveLoop);
     } catch (error) {
       if (generation !== counterCameraGeneration) return;
@@ -655,22 +621,16 @@
       permissionDenied
         ? "Povol přístup ke kameře a otevři Počítadlo znovu."
         : counterCameraId
-          ? "Zkontroluj připojení kamery nebo vyber jinou nad náhledem."
+          ? "Zkontroluj připojení kamery nebo vyber jinou v Nastavení počítadla."
           : "Otevři Výkoňák přímo v prohlížeči; vložené okno může kameru blokovat."
     );
     els.counterSweepHint.textContent = "";
-    if (els.counterCalibrate) {
-      els.counterCalibrate.disabled = true;
-      els.counterCalibrate.textContent = "Kalibrace není dostupná";
-    }
   }
 
   function setCounterEmpty(title, text) {
     els.counterEmptyTitle.textContent = title;
     els.counterEmptyText.textContent = text;
     els.counterEmpty.hidden = false;
-    els.counterCanvas.width = 1;
-    els.counterCanvas.height = 1;
   }
 
   function stopCounterCamera() {
@@ -687,147 +647,35 @@
     els.counterVideo.srcObject = null;
     els.counterLiveBadge.hidden = true;
     els.counterResolutionActual.textContent = "";
-    counterLatestFrame = null;
+    counterSweepActive = false;
     counterLastVideoTime = -1;
-    counterFrameCanvas.width = counterMeasuredCanvas.width = 1;
-    counterFrameCanvas.height = counterMeasuredCanvas.height = 1;
+    counterFrameCanvas.width = counterFrameCanvas.height = 1;
     els.counterCanvas.width = els.counterCanvas.height = 1;
-    counterReviewMode = false;
-    counterAreaSelection = counterWorkArea = null;
-    setCounterCalibrationMode(false);
+    els.counterSweepReset.disabled = true;
+    els.counterLiveBadge.textContent = "Živě";
   }
 
   function counterLiveLoop(time) {
     if (!counterStream || els.counterSheet.hidden) return;
-    if (!counterCalibrationMode && !counterReviewMode && !counterAreaSelection && !counterDetectionBusy && !counterDetectionFailed &&
+    if (counterSweepActive && !counterDetectionBusy && !counterDetectionFailed &&
         time >= counterNextFrameAt && els.counterVideo.readyState >= 2 &&
         els.counterVideo.currentTime !== counterLastVideoTime) {
       counterLastVideoTime = els.counterVideo.currentTime;
-      analyseCounterSource(els.counterVideo);
+      analyseCounterFrame();
     }
     counterAnimationFrame = requestAnimationFrame(counterLiveLoop);
   }
 
-  function toggleCounterCalibration() {
-    if (!counterLatestFrame) return;
-    setCounterCalibrationMode(!counterCalibrationMode);
-  }
-
-  function toggleCounterReview() {
-    if (!counterLatestFrame) return;
-    counterReviewMode = !counterReviewMode;
-    setCounterCalibrationMode(false);
-  }
-
-  function toggleCounterArea() {
-    if (!counterLatestFrame) return;
-    counterAreaSelection = counterAreaSelection ? null : { corner: null };
-    counterReviewMode = false;
-    setCounterCalibrationMode(false);
-    if (counterAreaSelection) els.counterStage.scrollIntoView({ block: "center", behavior: "smooth" });
-  }
-
-  function restartCounterSweep(workArea = counterWorkArea && (counterLatestFrame?.region ?? counterWorkArea)) {
+  function restartCounterSweep() {
     resetCounterWorker();
-    counterLatestFrame = null;
+    counterSweepActive = true;
     counterBaseCount = counterManualCorrection = 0;
-    counterReviewMode = false;
-    counterAreaSelection = null;
-    counterWorkArea = workArea;
-    setCounterCalibrationMode(false);
-    els.counterSweepHint.textContent = counterWorkArea
-      ? "Počítám ve vybrané ploše. Pomalu přejeď kamerou přes skupinu."
-      : "Spodky otoč dutinou nahoru a pomalu přejeď kamerou přes skupinu.";
+    drawCounterOverlay();
+    els.counterLiveBadge.textContent = "Počítám";
+    els.counterSweepHint.textContent = "Pomalu přejeď kamerou přes spodky otočené dutinou nahoru.";
     updateCounterCount();
-    // Start in the coordinates of the exact frame on which the area was selected.
-    if (counterWorkArea) analyseCounterSource(counterMeasuredCanvas);
   }
 
-  function setCounterCalibrationMode(active) {
-    counterCalibrationMode = Boolean(active);
-    counterCalibrationCenter = null;
-    if (active) {
-      counterReviewMode = false;
-      els.counterStage.scrollIntoView({ block: "center", behavior: "smooth" });
-    }
-    els.counterLiveBadge.textContent = counterAreaSelection ? "Plocha" : active ? "Kalibrace" : counterReviewMode ? "Kontrola" : "Přejezd";
-    els.counterCalibrationHint.textContent = counterAreaSelection
-      ? "1. Klepni na jeden roh plochy se spodky."
-      : "1. Klepni na střed dutiny jednoho spodku.";
-    els.counterStage.classList.toggle("is-calibrating", counterCalibrationMode);
-    els.counterStage.classList.toggle("is-selecting-area", Boolean(counterAreaSelection));
-    els.counterCalibrationHint.hidden = !counterCalibrationMode && !counterAreaSelection;
-    els.counterReview.textContent = counterReviewMode ? "Pokračovat v přejezdu" : "Zkontrolovat značky";
-    els.counterReview.setAttribute("aria-pressed", String(counterReviewMode));
-    updateCounterCalibrationButton();
-    updateCounterPreview(counterLatestFrame);
-  }
-
-  function updateCounterCalibrationButton() {
-    const calibrated = counterSweepRadius !== null;
-    els.counterCalibrate.disabled = !counterLatestFrame || Boolean(counterAreaSelection);
-    els.counterReview.disabled = !counterLatestFrame || counterCalibrationMode || Boolean(counterAreaSelection);
-    els.counterArea.disabled = !counterLatestFrame || counterCalibrationMode;
-    els.counterArea.setAttribute("aria-pressed", String(Boolean(counterAreaSelection)));
-    els.counterArea.classList.toggle("is-active", Boolean(counterAreaSelection));
-    els.counterArea.textContent = counterAreaSelection ? "Zrušit výběr" : counterWorkArea ? "Upravit plochu" : "Vymezit plochu";
-    els.counterClearArea.hidden = !counterWorkArea || Boolean(counterAreaSelection);
-    els.counterCalibrate.classList.toggle("is-active", counterCalibrationMode);
-    els.counterCalibrate.classList.toggle("is-calibrated", calibrated && !counterCalibrationMode);
-    els.counterCalibrate.textContent = counterCalibrationMode
-      ? "Zrušit kalibraci"
-      : calibrated
-        ? "Velikost spodku nastavena — změnit"
-        : "Kalibrovat podle jednoho kusu";
-  }
-
-  function handleCounterCanvasTap(event) {
-    if ((!counterCalibrationMode && !counterAreaSelection) || !counterLatestFrame) return;
-    event.preventDefault();
-    const rect = els.counterCanvas.getBoundingClientRect();
-    const contentScale = Math.min(rect.width / els.counterCanvas.width, rect.height / els.counterCanvas.height);
-    const contentWidth = els.counterCanvas.width * contentScale;
-    const contentHeight = els.counterCanvas.height * contentScale;
-    const offsetX = (rect.width - contentWidth) / 2;
-    const offsetY = (rect.height - contentHeight) / 2;
-    const canvasX = (event.clientX - rect.left - offsetX) / contentScale;
-    const canvasY = (event.clientY - rect.top - offsetY) / contentScale;
-    if (canvasX < 0 || canvasY < 0 || canvasX > els.counterCanvas.width || canvasY > els.counterCanvas.height) return;
-
-    const frameX = Math.round(canvasX * counterLatestFrame.width / els.counterCanvas.width);
-    const frameY = Math.round(canvasY * counterLatestFrame.height / els.counterCanvas.height);
-    if (counterAreaSelection) {
-      const { corner } = counterAreaSelection;
-      if (!corner) {
-        counterAreaSelection.corner = { x: frameX, y: frameY };
-        drawCounterCalibrationPoint(els.counterCanvas.getContext("2d"), { x: canvasX, y: canvasY });
-        els.counterCalibrationHint.textContent = "2. Klepni na protější roh. Stojan nech vně plochy.";
-        return;
-      }
-      const left = Math.min(corner.x, frameX), right = Math.max(corner.x, frameX);
-      const top = Math.min(corner.y, frameY), bottom = Math.max(corner.y, frameY);
-      if (right - left < .08 * counterLatestFrame.width || bottom - top < .08 * counterLatestFrame.height) {
-        els.counterCalibrationHint.textContent = "Zvol vzdálenější protější roh, aby se do plochy vešly všechny spodky.";
-        return;
-      }
-      restartCounterSweep([{ x:left, y:top }, { x:right, y:top }, { x:right, y:bottom }, { x:left, y:bottom }]);
-      return;
-    }
-    if (!counterCalibrationCenter) {
-      counterCalibrationCenter = { x: frameX, y: frameY };
-      drawCounterCalibrationPoint(els.counterCanvas.getContext("2d"), { x: canvasX, y: canvasY });
-      els.counterCalibrationHint.textContent = "2. Klepni na vnější okraj téhož spodku.";
-      return;
-    }
-    const radius = Math.hypot(frameX - counterCalibrationCenter.x, frameY - counterCalibrationCenter.y);
-    const ratio = radius / Math.max(counterLatestFrame.width, counterLatestFrame.height);
-    if (ratio < .008 || ratio > .12) {
-      els.counterCalibrationHint.textContent = "Klepni přesněji na vnější okraj spodku, případně kalibraci zruš.";
-      return;
-    }
-    counterSweepRadius = ratio;
-    restartCounterSweep();
-  }
   function updateCounterCount() {
     const count = Math.max(0, counterBaseCount + counterManualCorrection);
     if (els.counterCount.textContent === String(count)) return;
@@ -836,12 +684,9 @@
   }
 
   function loadCounterSettings() {
-    if (!els.counterSensitivity || !els.counterSize) return;
     try {
       const saved = JSON.parse(localStorage.getItem(COUNTER_SETTINGS_KEY) || "null");
       if (saved) {
-        els.counterSensitivity.value = String(clampNumber(saved.sensitivity, 20, 90));
-        els.counterSize.value = String(clampNumber(saved.size, 10, 100));
         if (Object.hasOwn(COUNTER_CAMERA_PRESETS, saved.resolution)) els.counterResolution.value = saved.resolution;
         if (typeof saved.cameraId === "string") counterCameraId = saved.cameraId;
         for (const [id, name] of Object.entries(saved.cameraNames ?? {})) {
@@ -849,23 +694,13 @@
         }
       }
     } catch {
-      // Invalid local settings fall back to the proven 55 / 35 defaults.
+      // Use the default camera and resolution if saved settings cannot be read.
     }
-    updateCounterSettingsLabels();
-  }
-
-  function handleCounterSettingsChange(event) {
-    if (event.target === els.counterSize) counterSweepRadius = null;
-    restartCounterSweep();
-    updateCounterSettingsLabels();
-    saveCounterSettings();
   }
 
   function saveCounterSettings() {
     try {
       localStorage.setItem(COUNTER_SETTINGS_KEY, JSON.stringify({
-        sensitivity: Number(els.counterSensitivity.value),
-        size: Number(els.counterSize.value),
         resolution: els.counterResolution.value,
         cameraId: counterCameraId,
         cameraNames: Object.fromEntries(counterCameraNames)
@@ -882,7 +717,6 @@
 
   function restartCounterCamera() {
     if (els.counterSheet.hidden) return;
-    counterSweepRadius = null;
     void startCounterCamera();
   }
 
@@ -892,24 +726,14 @@
     els.counterResolutionActual.textContent = `Obraz z kamery ${videoWidth} × ${videoHeight} px`;
   }
 
-  function updateCounterSettingsLabels() {
-    if (els.counterSensitivityValue && els.counterSensitivity) {
-      els.counterSensitivityValue.textContent = els.counterSensitivity.value;
-    }
-    if (els.counterSizeValue && els.counterSize) {
-      els.counterSizeValue.textContent = els.counterSize.value;
-    }
-  }
-
   function adjustCounter(delta) {
     counterManualCorrection = Math.max(-counterBaseCount, counterManualCorrection + delta);
     updateCounterCount();
   }
 
-  function analyseCounterSource(source) {
-    if (counterDetectionBusy) return;
-    const sourceWidth = source.videoWidth || source.naturalWidth || source.width;
-    const sourceHeight = source.videoHeight || source.naturalHeight || source.height;
+  function analyseCounterFrame() {
+    const source = els.counterVideo;
+    const { videoWidth: sourceWidth, videoHeight: sourceHeight } = source;
     if (!sourceWidth || !sourceHeight) return;
 
     const outputLimit = COUNTER_CAMERA_PRESETS[els.counterResolution.value].analysis;
@@ -917,14 +741,13 @@
     const outputWidth = Math.max(1, Math.round(sourceWidth * outputScale));
     const outputHeight = Math.max(1, Math.round(sourceHeight * outputScale));
     const inputSize = `${outputWidth}x${outputHeight}`;
-    if (counterInputSize && counterInputSize !== inputSize) restartCounterSweep(null);
+    if (counterInputSize && counterInputSize !== inputSize) restartCounterSweep();
     counterInputSize = inputSize;
     counterNextFrameAt = performance.now() + COUNTER_MEASUREMENT_INTERVAL_MS;
     if (counterFrameCanvas.width !== outputWidth || counterFrameCanvas.height !== outputHeight) {
       counterFrameCanvas.width = outputWidth;
       counterFrameCanvas.height = outputHeight;
     }
-    // Keep the exact analysed frame until its markers and count are ready.
     const frameContext = counterFrameCanvas.getContext("2d", { willReadFrequently: true });
     frameContext.drawImage(source, 0, 0, outputWidth, outputHeight);
     const { data: pixels } = frameContext.getImageData(0, 0, outputWidth, outputHeight);
@@ -946,69 +769,69 @@
     function failed() {
       resetCounterWorker();
       counterDetectionFailed = true;
-      els.counterSweepHint.textContent = "Výpočet se zastavil. Klepni na Nový přejezd a zkus to znovu.";
+      drawCounterOverlay();
+      els.counterLiveBadge.textContent = "Živě";
+      els.counterSweepHint.textContent = "Výpočet se zastavil. Zkus znovu klepnout na Spočítat spodky.";
     }
     try {
       if (!counterDetectorWorker) {
-        const worker = new Worker("counter-worker.js?v=937");
+        const worker = new Worker("counter-worker.js?v=938");
         counterDetectorWorker = worker;
         worker.onmessage = ({data}) => {
           if (counterDetectorWorker !== worker) return;
           clearTimeout(counterDetectionTimer);
           counterDetectionBusy = false;
           if (data.error) { failed(); return; }
-          if (counterStream && !els.counterSheet.hidden && !counterReviewMode && !counterCalibrationMode && !counterAreaSelection) {
-            showCounterDetection(data);
-          }
+          showCounterDetection(data);
         };
         worker.onerror = () => { if (counterDetectorWorker === worker) failed(); };
       }
       counterDetectionBusy = true;
       counterDetectorWorker.postMessage({
         pixels, width, height,
-        sensitivity: Number(els.counterSensitivity.value),
-        radiusRatio: counterSweepRadius ?? .035 * Number(els.counterSize.value) / 35,
-        calibratedSize: counterSweepRadius !== null,
-        workArea: counterWorkArea,
         time: performance.now()
       }, [pixels.buffer]);
       counterDetectionTimer = setTimeout(failed, 25000);
     } catch { failed(); }
   }
 
-  function updateCounterPreview(result) {
-    const frozen = Boolean(result && (counterCalibrationMode || counterReviewMode || counterAreaSelection));
-    const showArea = !frozen && Boolean(counterWorkArea && result?.region);
-    els.counterStage.classList.toggle("shows-snapshot", frozen);
-    els.counterStage.classList.toggle("shows-area", showArea);
-    if (!frozen && !showArea) return;
-
-    const output = els.counterCanvas;
-    if (output.width !== result.width || output.height !== result.height) {
-      output.width = result.width;
-      output.height = result.height;
+  function drawCounterOverlay(result) {
+    const canvas = els.counterCanvas;
+    const context = canvas.getContext("2d");
+    if (!result?.aligned || (!result.components.length && !result.candidates.length)) {
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      return;
     }
-    const outputContext = output.getContext("2d");
-    outputContext.clearRect(0, 0, output.width, output.height);
-    if (frozen) outputContext.drawImage(counterMeasuredCanvas, 0, 0);
-    if ((showArea || counterReviewMode) && result.region) drawCounterRegion(outputContext, result.region);
-    if (counterReviewMode) drawCounterComponents(outputContext, result.components);
+    if (canvas.width !== result.width || canvas.height !== result.height) {
+      canvas.width = result.width;
+      canvas.height = result.height;
+    }
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = "#ffd45c";
+    context.strokeStyle = "#132e38";
+    context.lineWidth = 2;
+    for (const { centerX, centerY } of result.candidates) {
+      context.beginPath();
+      context.arc(centerX, centerY, 5, 0, Math.PI * 2);
+      context.fill();
+      context.stroke();
+    }
+    drawCounterComponents(context, result.components);
   }
 
   function showCounterDetection(result) {
-    let hint = "Poloha kamery je nejistá. Vrať kameru trochu zpět nebo začni nový přejezd.";
+    let hint = "Poloha kamery je nejistá. Zpomal nebo vrať kameru trochu zpět.";
+    const badge = result.aligned ? "Počítám" : "Zpomal";
+    if (els.counterLiveBadge.textContent !== badge) els.counterLiveBadge.textContent = badge;
     if (result.aligned) {
-      [counterMeasuredCanvas, counterFrameCanvas] = [counterFrameCanvas, counterMeasuredCanvas];
-      counterLatestFrame = result;
-      updateCounterCalibrationButton();
       if (!result.detected && !result.count) {
-        hint = "V záběru zatím žádný spodek. Zkus Kalibrovat podle jednoho kusu.";
+        hint = "Hledám spodky. Drž celou skupinu v záběru.";
       } else {
-        const instruction = result.count ? "Přejížděj pomalu přes skupinu." : "Pro potvrzení pomalu posuň kameru do strany.";
+        const instruction = result.count ? "Zelené značky jsou započítané." : "Pro potvrzení pomalu posuň kameru do strany.";
         hint = `V záběru ${result.detected} možných spodků, potvrzeno ${result.count}. ${instruction}`;
       }
     }
-    updateCounterPreview(result.aligned ? result : null);
+    drawCounterOverlay(result);
     if (els.counterSweepHint.textContent !== hint) els.counterSweepHint.textContent = hint;
     counterBaseCount = result.count;
     updateCounterCount();
@@ -1036,35 +859,6 @@
       context.fillText(String(label), centerX, centerY + 0.5);
       context.fillStyle = "rgba(4, 41, 53, 0.88)";
     }
-    context.restore();
-  }
-
-  function drawCounterRegion(context, region) {
-    context.save();
-    context.strokeStyle = "rgba(230, 249, 255, .8)";
-    context.lineWidth = 2;
-    context.setLineDash([8, 6]);
-    context.beginPath();
-    context.moveTo(region[0].x, region[0].y);
-    for (const point of region.slice(1)) context.lineTo(point.x, point.y);
-    context.closePath();
-    context.stroke();
-    context.restore();
-  }
-
-  function drawCounterCalibrationPoint(context, point) {
-    context.save();
-    context.strokeStyle = "#ffd45c";
-    context.lineWidth = 4;
-    context.beginPath();
-    context.arc(point.x, point.y, 22, 0, Math.PI * 2);
-    context.stroke();
-    context.beginPath();
-    context.moveTo(point.x - 30, point.y);
-    context.lineTo(point.x + 30, point.y);
-    context.moveTo(point.x, point.y - 30);
-    context.lineTo(point.x, point.y + 30);
-    context.stroke();
     context.restore();
   }
 

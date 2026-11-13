@@ -8,10 +8,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Výkoňák">
     <title>Výkoňák</title>
-    <link rel="manifest" href="manifest.webmanifest?v=937">
+    <link rel="manifest" href="manifest.webmanifest?v=938">
     <link rel="icon" href="icon-192.png">
     <link rel="apple-touch-icon" href="icon-192.png">
-    <link rel="stylesheet" href="styles.css?v=937">
+    <link rel="stylesheet" href="styles.css?v=938">
   </head>
   <body>
     <div class="app-shell">
@@ -23,7 +23,7 @@
           <button class="topbar-clear-button" id="resetApp" type="button">Vymazat údaje</button>
         </div>
         <div class="topbar-actions">
-          <span class="app-version">v9.37</span>
+          <span class="app-version">v9.38</span>
           <div class="company-mark" aria-label="SOLEA výrobní družstvo">
             <strong>SOLEA</strong>
             <span>výrobní družstvo</span>
@@ -465,27 +465,9 @@
           </button>
         </div>
 
-        <div class="counter-resolution" id="counterCameraControl" hidden>
-          <label for="counterCamera">Kamera</label>
-          <div class="counter-camera-row">
-            <select id="counterCamera">
-              <option value="">Automaticky</option>
-            </select>
-            <button id="counterRenameCamera" type="button" disabled>Přejmenovat</button>
-          </div>
-          <form class="counter-camera-name" id="counterCameraNameForm" hidden>
-            <label for="counterCameraName">Vlastní název kamery</label>
-            <input id="counterCameraName" type="text" maxlength="40" autocomplete="off" placeholder="Např. Díly">
-            <div class="counter-camera-row">
-              <button type="submit">Uložit název</button>
-              <button id="counterCancelCameraName" type="button">Zrušit</button>
-            </div>
-            <small>Prázdný název obnoví původní označení.</small>
-          </form>
-        </div>
-        <div class="counter-stage" id="counterStage">
+        <div class="counter-stage">
           <video id="counterVideo" playsinline muted aria-hidden="true"></video>
-          <canvas id="counterCanvas" aria-label="Obraz kamery s označenými kusy"></canvas>
+          <canvas id="counterCanvas" width="1" height="1" aria-hidden="true"></canvas>
           <div class="counter-empty" id="counterEmpty">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
@@ -495,62 +477,55 @@
             <span id="counterEmptyText">Povol přístup ke kameře.</span>
           </div>
           <div class="counter-live-badge" id="counterLiveBadge" hidden>Živě</div>
-          <div class="counter-calibration-hint" id="counterCalibrationHint" aria-live="polite" hidden></div>
           <div class="counter-count" aria-live="polite">
             <strong id="counterCount">0</strong>
             <span>kusů</span>
           </div>
         </div>
-        <div class="counter-calibration-controls">
-          <p class="counter-privacy" id="counterSweepHint" role="status"></p>
-          <div class="counter-sweep-actions">
-            <button class="counter-calibrate" id="counterSweepReset" type="button">Nový přejezd</button>
-            <button class="counter-calibrate" id="counterReview" type="button" aria-pressed="false" disabled>Zkontrolovat značky</button>
-          </div>
-          <button class="counter-calibrate" id="counterCalibrate" type="button" disabled>Kalibrovat podle jednoho kusu</button>
-          <div class="counter-sweep-actions counter-area-actions">
-            <button class="counter-calibrate" id="counterArea" type="button" aria-pressed="false" disabled>Vymezit plochu</button>
-            <button class="counter-calibrate" id="counterClearArea" type="button" hidden>Celý záběr</button>
-          </div>
-          <div class="counter-settings">
-            <div class="counter-settings-title">
-              <strong>Ruční nastavení</strong>
+        <p class="counter-privacy" id="counterSweepHint" role="status"></p>
+        <button class="counter-find" id="counterSweepReset" type="button" disabled>Spočítat spodky</button>
+        <details class="counter-options" id="counterOptions">
+          <summary>Nastavení počítadla</summary>
+          <div class="counter-options-content">
+            <div class="counter-resolution" id="counterCameraControl" hidden>
+              <label for="counterCamera">Kamera</label>
+              <div class="counter-camera-row">
+                <select id="counterCamera">
+                  <option value="">Automaticky</option>
+                </select>
+                <button id="counterRenameCamera" type="button" disabled>Přejmenovat</button>
+              </div>
+              <form class="counter-camera-name" id="counterCameraNameForm" hidden>
+                <label for="counterCameraName">Vlastní název kamery</label>
+                <input id="counterCameraName" type="text" maxlength="40" autocomplete="off" placeholder="Např. Díly">
+                <div class="counter-camera-row">
+                  <button type="submit">Uložit název</button>
+                  <button id="counterCancelCameraName" type="button">Zrušit</button>
+                </div>
+                <small>Prázdný název obnoví původní označení.</small>
+              </form>
             </div>
-            <label>
-              <span>Citlivost rozpoznání</span>
-              <output id="counterSensitivityValue">55</output>
-              <input id="counterSensitivity" type="range" min="20" max="90" value="55" aria-describedby="counterSensitivityHelp">
-              <small><span>Méně objektů</span><span>Více objektů</span></small>
-              <small class="counter-setting-help" id="counterSensitivityHelp">Začni na 55. Chybí kusy? Přidej trochu. Přibývají stíny? Uber.</small>
+            <label class="counter-resolution">
+              <span>Rozlišení kamery</span>
+              <select id="counterResolution" aria-describedby="counterResolutionHelp">
+                <option value="light">Úsporné (800 × 600)</option>
+                <option value="balanced" selected>Vyvážené (1280 × 960)</option>
+                <option value="detail">Detailní (1920 × 1440)</option>
+              </select>
+              <small id="counterResolutionHelp">Po změně rozlišení znovu klepni na Spočítat spodky.</small>
+              <output id="counterResolutionActual" aria-live="polite"></output>
             </label>
-            <label>
-              <span>Velikost spodku</span>
-              <output id="counterSizeValue">35</output>
-              <input id="counterSize" type="range" min="10" max="100" value="35" aria-describedby="counterSizeHelp">
-              <small><span>Menší</span><span>Větší</span></small>
-              <small class="counter-setting-help" id="counterSizeHelp">Začni na 35. Blíž ke kameře přidej, dál uber. Změna zahájí nový přejezd.</small>
-            </label>
-          </div>
-          <label class="counter-resolution">
-            <span>Rozlišení kamery</span>
-            <select id="counterResolution" aria-describedby="counterResolutionHelp">
-              <option value="light">Úsporné (800 × 600)</option>
-              <option value="balanced" selected>Vyvážené (1280 × 960)</option>
-              <option value="detail">Detailní (1920 × 1440)</option>
-            </select>
-            <small id="counterResolutionHelp">Změna rozlišení spustí měření znovu.</small>
-            <output id="counterResolutionActual" aria-live="polite"></output>
-          </label>
-          <div class="counter-correction">
-            <span>Ruční oprava počtu</span>
-            <div>
-              <button type="button" id="counterMinus" aria-label="Odečíst jeden kus">−</button>
-              <strong id="counterCorrectedCount">0 ks</strong>
-              <button type="button" id="counterPlus" aria-label="Přidat jeden kus">+</button>
+            <div class="counter-correction">
+              <span>Ruční oprava počtu</span>
+              <div>
+                <button type="button" id="counterMinus" aria-label="Odečíst jeden kus">−</button>
+                <strong id="counterCorrectedCount">0 ks</strong>
+                <button type="button" id="counterPlus" aria-label="Přidat jeden kus">+</button>
+              </div>
             </div>
+            <p class="counter-privacy">Počet se obnovuje po každém měření. Obraz se zpracovává v paměti telefonu bez ukládání a odesílání.</p>
           </div>
-          <p class="counter-privacy">Počet se obnovuje po každém měření. Obraz se zpracovává v paměti telefonu bez ukládání a odesílání.</p>
-        </div>
+        </details>
       </section>
     </div>
 
@@ -625,6 +600,6 @@
       </section>
     </div>
 
-    <script src="app.js?v=937" defer></script>
+    <script src="app.js?v=938" defer></script>
   </body>
 </html>

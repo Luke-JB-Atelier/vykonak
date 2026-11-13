@@ -33,7 +33,11 @@ test('chooses the exact camera when two webcams have the same name and remembers
         return stream;
       };
     });
-    const open=()=>page.locator('#openPieceCounter').click();
+    const open=async()=>{
+      await page.locator('#openPieceCounter').click();
+      const options=page.locator('#counterOptions');
+      if (await options.getAttribute('open') === null) await options.locator('summary').click();
+    };
     const close=()=>page.locator('#counterClose').click();
     const waitForCamera=id=>page.waitForFunction(deviceId=>{
       const video=document.querySelector('#counterVideo');
@@ -109,7 +113,6 @@ test('live video keeps moving and a short sweep still confirms the measured piec
       window.sweepWorkerGaps=[];
       window.sweepShortMotion=null;
       window.sweepMaxInFlight=0;
-      window.sweepCalibrationFlags=[];
       window.sweepAnalysisSizes=[];
       const NativeWorker=window.Worker;
       window.Worker=class {
@@ -130,7 +133,6 @@ test('live video keeps moving and a short sweep still confirms the measured piec
           window.sweepWorkerStartedAt=startedAt;
           window.sweepInFlight++;
           window.sweepMaxInFlight=Math.max(window.sweepMaxInFlight,window.sweepInFlight);
-          window.sweepCalibrationFlags.push(args[0].calibratedSize);
           window.sweepAnalysisSizes.push([args[0].width,args[0].height]);
           this.native.postMessage(...args);
         }
@@ -185,15 +187,29 @@ test('live video keeps moving and a short sweep still confirms the measured piec
     assert.deepEqual(await page.evaluate(()=>window.sweepCameraRequests[0]),{
       facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:960},aspectRatio:{ideal:4/3},frameRate:{ideal:30}
     });
-    assert.equal(await page.locator('#counterSweep, #counterSeparate').count(),0);
+    const countButton=page.getByRole('button',{name:'Spočítat spodky',exact:true});
+    const canvas=page.locator('#counterCanvas');
+    const marks=(color)=>canvas.evaluate((element,kind)=>{
+      const pixels=element.getContext('2d').getImageData(0,0,element.width,element.height).data;
+      return pixels.some((red,index)=>{
+        if(index%4!==0 || pixels[index+3]<100)return false;
+        const green=pixels[index+1],blue=pixels[index+2];
+        return kind==='green' ? green>red+60 && green>blue+45 : red>215 && green>150 && blue<130;
+      });
+    },color);
+    assert.equal(await page.locator('#counterReview, #counterArea, #counterCalibrate, #counterSensitivity, #counterSize').count(),0);
+    assert.equal(await page.locator('#counterOptions').getAttribute('open'),null);
+    assert.equal(await page.locator('#counterLiveBadge').textContent(),'Živě');
+    assert.equal(await page.evaluate(()=>window.sweepWorkerResults),0);
+    await countButton.click();
+    assert.equal(await page.locator('#counterLiveBadge').textContent(),'Počítám');
     await page.waitForFunction(()=>window.sweepWorkerResults>=3,null,{timeout:35000});
     assert.equal(await page.locator('#counterCount').textContent(),'0');
-    assert.match(await page.locator('#counterSweepHint').textContent(),/V záběru zatím žádný spodek/);
+    assert.match(await page.locator('#counterSweepHint').textContent(),/Hledám spodky/);
     await page.evaluate(()=>{window.sweepPieces=3;});
     await page.waitForFunction(()=>document.querySelector('#counterSweepHint').textContent.includes('3 možných spodků, potvrzeno 0'),null,{timeout:35000});
-    assert.equal(await page.evaluate(()=>window.sweepCalibrationFlags[0]),false);
-    assert.equal(await page.locator('#counterLiveBadge').textContent(),'Přejezd');
-    assert.equal(await page.locator('#counterCanvas').isVisible(),false);
+    assert.equal(await marks('yellow'),true);
+    assert.equal(await marks('green'),false);
     await page.evaluate(()=>{window.sweepWorkerDelay=750;});
     await page.waitForFunction(()=>window.sweepInFlight===1);
     assert.equal(await page.evaluate(async()=>{
@@ -203,74 +219,29 @@ test('live video keeps moving and a short sweep still confirms the measured piec
       return video.currentTime>start && window.sweepInFlight===1;
     }),true);
     await page.evaluate(()=>{window.sweepWorkerDelay=0;});
-    await page.evaluate(()=>{
-      window.sweepShortMotion={startedAt:null};
-      document.querySelector('#counterSweepReset').click();
-    });
+    await page.evaluate(()=>{window.sweepShortMotion={startedAt:null};});
+    await countButton.click();
     await page.waitForFunction(()=>document.querySelector('#counterCount').textContent==='3',null,{timeout:8000});
-    await page.evaluate(()=>{window.sweepShortMotion=null;});
-    await page.locator('#counterReview').click();
-    assert.equal(await page.locator('#counterCanvas').evaluate(canvas=>{
-      const pixels=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
-      return pixels.some((red,index)=>index%4===0 && pixels[index+1]>red+60 && pixels[index+1]>pixels[index+2]+45);
-    }),true);
-    assert.equal(await page.locator('#counterCanvas').isVisible(),true);
-    assert.equal(await page.locator('#counterLiveBadge').textContent(),'Kontrola');
-    const snapshot=await page.locator('#counterCanvas').evaluate(canvas=>canvas.toDataURL());
-    await page.evaluate(()=>{window.sweepShift=0;});
-    await page.waitForTimeout(250);
-    assert.equal(await page.locator('#counterCanvas').evaluate(canvas=>canvas.toDataURL()),snapshot);
-    await page.locator('#counterReview').click();
-    assert.equal(await page.locator('#counterLiveBadge').textContent(),'Přejezd');
-    assert.equal(await page.locator('#counterCanvas').isVisible(),false);
-    await page.evaluate(()=>{window.sweepPieces=2;window.sweepShift=20;});
+    assert.equal(await marks('green'),true);
+    assert.equal(await canvas.isVisible(),true);
+    assert.equal(await page.locator('#counterLiveBadge').textContent(),'Počítám');
+    await page.evaluate(()=>{window.sweepShortMotion=null;window.sweepPieces=2;window.sweepShift=20;});
     await page.waitForTimeout(650);
     assert.equal(await page.locator('#counterCount').textContent(),'3');
-    await page.evaluate(()=>{window.sweepPieces=3;});
+    await page.evaluate(()=>{window.sweepPieces=3;window.sweepShift=0;});
+    await countButton.click();
+    assert.equal(await page.locator('#counterCount').textContent(),'0');
+    assert.equal(await marks('green'),false);
     await page.waitForFunction(()=>document.querySelector('#counterSweepHint').textContent.includes('3 možných spodků'));
-    await page.locator('#counterArea').click();
-    assert.equal(await page.locator('#counterLiveBadge').textContent(),'Plocha');
-    assert.equal(await page.locator('#counterReview').isEnabled(),false);
-    const areaCoords=await page.locator('#counterCanvas').evaluate(canvas=>{
-      const rect=canvas.getBoundingClientRect();
-      const scale=Math.min(rect.width/canvas.width,rect.height/canvas.height);
-      return {x:rect.x+(rect.width-canvas.width*scale)/2,y:rect.y+(rect.height-canvas.height*scale)/2,scale};
-    });
-    await page.touchscreen.tap(areaCoords.x+80*areaCoords.scale,areaCoords.y+150*areaCoords.scale);
-    await page.touchscreen.tap(areaCoords.x+275*areaCoords.scale,areaCoords.y+275*areaCoords.scale);
-    await page.waitForFunction(()=>document.querySelector('#counterSweepHint').textContent.includes('2 možných spodků'));
-    await page.locator('#counterSweepReset').click();
-    await page.waitForFunction(()=>document.querySelector('#counterSweepHint').textContent.includes('2 možných spodků'));
-    for(const shift of [24,29,35,40]){
-      const results=await page.evaluate(offset=>{window.sweepShift=offset;return window.sweepWorkerResults;},shift);
-      await page.waitForFunction(results=>window.sweepWorkerResults>=results+2,results);
-    }
-    await page.waitForFunction(()=>document.querySelector('#counterCount').textContent==='2',null,{timeout:6000});
-    await page.evaluate(()=>{window.sweepShift=20;});
-    await page.locator('#counterClearArea').click();
-    await page.waitForFunction(()=>document.querySelector('#counterSweepHint').textContent.includes('3 možných spodků'),null,{timeout:6000});
     await page.evaluate(()=>{window.sweepSource.height=600;});
     await page.waitForFunction(()=>window.sweepAnalysisSizes.at(-1)?.[1]===600);
     await page.waitForFunction(()=>document.querySelector('#counterCount').textContent==='0');
-    await page.waitForFunction(()=>!document.querySelector('#counterCalibrate').disabled);
-    await page.locator('#counterCalibrate').click();
-    assert.equal(await page.locator('#counterLiveBadge').textContent(),'Kalibrace');
-    const coords=await page.locator('#counterCanvas').evaluate(canvas=>{
-      const rect=canvas.getBoundingClientRect();
-      const scale=Math.min(rect.width/canvas.width,rect.height/canvas.height);
-      return {x:rect.x+(rect.width-canvas.width*scale)/2,y:rect.y+(rect.height-canvas.height*scale)/2,scale};
-    });
-    await page.touchscreen.tap(coords.x+135*coords.scale,coords.y+190*coords.scale);
-    await page.touchscreen.tap(coords.x+157*coords.scale,coords.y+190*coords.scale);
-    await page.waitForFunction(()=>document.querySelector('#counterCalibrate').textContent.includes('Velikost spodku nastavena'));
-    await page.waitForFunction(()=>window.sweepCalibrationFlags.at(-1)===true);
-    assert.equal(await page.locator('#counterCanvas').isVisible(),false);
-    await page.locator('#counterSweepReset').click();
-    await page.waitForFunction(()=>document.querySelector('#counterCount').textContent==='0');
+    await page.locator('#counterOptions summary').click();
     await page.evaluate(()=>{window.previousSweepStream=window.sweepTestStream;});
     await page.locator('#counterResolution').selectOption('light');
     await page.waitForFunction(()=>window.sweepCameraRequests.length===2);
     await page.waitForFunction(()=>document.querySelector('#counterResolutionActual').textContent.includes('640 × 480'));
+    await countButton.click();
     await page.waitForFunction(()=>window.sweepAnalysisSizes.some(([width,height])=>width===640 && height===480));
     assert.deepEqual(await page.evaluate(()=>window.sweepCameraRequests[1]),{
       facingMode:{ideal:'environment'},width:{ideal:800},height:{ideal:600},aspectRatio:{ideal:4/3},frameRate:{ideal:24}
@@ -279,10 +250,9 @@ test('live video keeps moving and a short sweep still confirms the measured piec
     assert.equal(await page.locator('#counterCount').textContent(),'0');
     await page.locator('#counterResolution').selectOption('detail');
     await page.waitForFunction(()=>document.querySelector('#counterResolutionActual').textContent.includes('1600 × 1200'));
-    await page.waitForFunction(()=>!document.querySelector('#counterReview').disabled);
+    await countButton.click();
     await page.waitForFunction(()=>window.sweepAnalysisSizes.some(([width,height])=>width===1280 && height===960));
-    await page.locator('#counterReview').click();
-    assert.equal(await page.locator('#counterCanvas').evaluate(canvas=>canvas.width),1280);
+    await page.waitForFunction(()=>document.querySelector('#counterCanvas').width===1280);
     await page.locator('#counterClose').click();
     assert.equal(await page.evaluate(()=>window.sweepTestStream.getVideoTracks()[0].readyState),'ended');
     assert.equal(await page.evaluate(()=>window.sweepMaxInFlight),1);
