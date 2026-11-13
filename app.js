@@ -3,6 +3,7 @@
   const RECORDS_KEY = "vykonak-denni-zaznamy-v1";
   const CALC_VIBRATION_KEY = "vykonak-calculator-vibration";
   const COUNTER_SETTINGS_KEY = "vykonak-counter-settings-v1";
+  const COUNTER_MEASUREMENT_PAUSE_MS = 450;
   const COUNTER_CAMERA_PRESETS = {
     light: { width: 800, height: 600, frameRate: 24, analysis: 800 },
     balanced: { width: 1280, height: 960, frameRate: 30, analysis: 960 },
@@ -207,7 +208,7 @@
   let completedProductionPlan = null;
   let counterStream = null;
   let counterAnimationFrame = 0;
-  let counterLastFrameAt = 0;
+  let counterNextFrameAt = 0;
   let counterBaseCount = 0;
   let counterManualCorrection = 0;
   let counterSweepRadius = null;
@@ -494,7 +495,7 @@
     });
     window.addEventListener("load", () => {
       navigator.serviceWorker
-        .register("sw.js?v=934", { updateViaCache: "none" })
+        .register("sw.js?v=935", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
       updateInstallButtons();
@@ -577,7 +578,6 @@
       void updateCounterCameras(generation);
       updateCounterCalibrationButton();
       els.counterSweepHint.textContent = "Spodky otoč dutinou nahoru a pomalu přejeď kamerou přes skupinu.";
-      counterLastFrameAt = 0;
       counterAnimationFrame = requestAnimationFrame(counterLiveLoop);
     } catch (error) {
       if (generation !== counterCameraGeneration) return;
@@ -700,9 +700,8 @@
   function counterLiveLoop(time) {
     if (!counterStream || els.counterSheet.hidden) return;
     if (!counterCalibrationMode && !counterReviewMode && !counterAreaSelection && !counterDetectionBusy && !counterDetectionFailed &&
-        time - counterLastFrameAt >= 100 && els.counterVideo.readyState >= 2 &&
+        time >= counterNextFrameAt && els.counterVideo.readyState >= 2 &&
         els.counterVideo.currentTime !== counterLastVideoTime) {
-      counterLastFrameAt = time;
       counterLastVideoTime = els.counterVideo.currentTime;
       analyseCounterSource(els.counterVideo);
     }
@@ -761,8 +760,7 @@
     els.counterReview.textContent = counterReviewMode ? "Pokračovat v přejezdu" : "Zkontrolovat značky";
     els.counterReview.setAttribute("aria-pressed", String(counterReviewMode));
     updateCounterCalibrationButton();
-    if (counterLatestFrame) drawCounterSnapshot(counterMeasuredCanvas, counterLatestFrame);
-    else els.counterStage.classList.remove("shows-snapshot");
+    updateCounterPreview(counterLatestFrame);
   }
 
   function updateCounterCalibrationButton() {
@@ -938,6 +936,7 @@
     counterDetectionBusy = false;
     counterDetectionFailed = false;
     counterInputSize = "";
+    counterNextFrameAt = 0;
     clearTimeout(counterDetectionTimer);
     counterDetectionTimer = null;
   }
@@ -950,13 +949,14 @@
     }
     try {
       if (!counterDetectorWorker) {
-        const worker = new Worker("counter-worker.js?v=934");
+        const worker = new Worker("counter-worker.js?v=935");
         counterDetectorWorker = worker;
         worker.onmessage = ({data}) => {
           if (counterDetectorWorker !== worker) return;
           clearTimeout(counterDetectionTimer);
           counterDetectionBusy = false;
           if (data.error) { failed(); return; }
+          counterNextFrameAt = performance.now() + COUNTER_MEASUREMENT_PAUSE_MS;
           if (counterStream && !els.counterSheet.hidden && !counterReviewMode && !counterCalibrationMode && !counterAreaSelection) {
             showCounterDetection(data);
           }
@@ -976,19 +976,23 @@
     } catch { failed(); }
   }
 
-  function drawCounterSnapshot(source, { region, components }) {
+  function updateCounterPreview(result) {
+    const frozen = Boolean(result && (counterCalibrationMode || counterReviewMode || counterAreaSelection));
+    const showArea = !frozen && Boolean(counterWorkArea && result?.region);
+    els.counterStage.classList.toggle("shows-snapshot", frozen);
+    els.counterStage.classList.toggle("shows-area", showArea);
+    if (!frozen && !showArea) return;
+
     const output = els.counterCanvas;
-    if (output.width !== source.width || output.height !== source.height) {
-      output.width = source.width;
-      output.height = source.height;
+    if (output.width !== result.width || output.height !== result.height) {
+      output.width = result.width;
+      output.height = result.height;
     }
     const outputContext = output.getContext("2d");
-    outputContext.drawImage(source, 0, 0);
-    if (!counterCalibrationMode && !counterAreaSelection) {
-      if (region) drawCounterRegion(outputContext, region);
-      drawCounterComponents(outputContext, components);
-    }
-    els.counterStage.classList.add("shows-snapshot");
+    outputContext.clearRect(0, 0, output.width, output.height);
+    if (frozen) outputContext.drawImage(counterMeasuredCanvas, 0, 0);
+    if ((showArea || counterReviewMode) && result.region) drawCounterRegion(outputContext, result.region);
+    if (counterReviewMode) drawCounterComponents(outputContext, result.components);
   }
 
   function showCounterDetection(result) {
@@ -996,7 +1000,6 @@
     if (result.aligned) {
       [counterMeasuredCanvas, counterFrameCanvas] = [counterFrameCanvas, counterMeasuredCanvas];
       counterLatestFrame = result;
-      drawCounterSnapshot(counterMeasuredCanvas, result);
       updateCounterCalibrationButton();
       if (!result.detected && !result.count) {
         hint = "V záběru zatím žádný spodek. Zkus Kalibrovat podle jednoho kusu.";
@@ -1004,9 +1007,8 @@
         const instruction = result.count ? "Přejížděj pomalu přes skupinu." : "Pro potvrzení pomalu posuň kameru do strany.";
         hint = `V záběru ${result.detected} možných spodků, potvrzeno ${result.count}. ${instruction}`;
       }
-    } else {
-      drawCounterSnapshot(counterFrameCanvas, result);
     }
+    updateCounterPreview(result.aligned ? result : null);
     if (els.counterSweepHint.textContent !== hint) els.counterSweepHint.textContent = hint;
     counterBaseCount = result.count;
     updateCounterCount();

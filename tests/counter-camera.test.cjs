@@ -88,7 +88,7 @@ test('chooses the exact camera when two webcams have the same name and remembers
   } finally { await browser.close(); }
 });
 
-test('counter starts the sweep directly and shows the markers on the frame it measured',
+test('live video keeps moving while the counter spaces out measurements and reviews the measured frame',
   {skip:!process.env.COUNTER_BASE_URL,timeout:55000},async()=>{
   const {chromium}=require('playwright');
   const browser=await chromium.launch({headless:true,...(process.env.EDGE_PATH?{executablePath:process.env.EDGE_PATH}:{})});
@@ -103,6 +103,9 @@ test('counter starts the sweep directly and shows the markers on the frame it me
       window.sweepCameraRequests=[];
       window.sweepWorkerDelay=0;
       window.sweepInFlight=0;
+      window.sweepWorkerResults=0;
+      window.sweepWorkerFinishedAt=null;
+      window.sweepWorkerGaps=[];
       window.sweepMaxInFlight=0;
       window.sweepCalibrationFlags=[];
       window.sweepAnalysisSizes=[];
@@ -113,18 +116,21 @@ test('counter starts the sweep directly and shows the markers on the frame it me
           this.native.onmessage=event=>setTimeout(()=>{
             if(this.ended)return;
             window.sweepInFlight--;
+            window.sweepWorkerResults++;
+            window.sweepWorkerFinishedAt=performance.now();
             this.onmessage?.(event);
           },window.sweepWorkerDelay);
           this.native.onerror=event=>this.onerror?.(event);
         }
         postMessage(...args){
+          if(window.sweepWorkerFinishedAt!==null)window.sweepWorkerGaps.push(performance.now()-window.sweepWorkerFinishedAt);
           window.sweepInFlight++;
           window.sweepMaxInFlight=Math.max(window.sweepMaxInFlight,window.sweepInFlight);
           window.sweepCalibrationFlags.push(args[0].calibratedSize);
           window.sweepAnalysisSizes.push([args[0].width,args[0].height]);
           this.native.postMessage(...args);
         }
-        terminate(){this.ended=true;window.sweepInFlight=0;this.native.terminate();}
+        terminate(){this.ended=true;window.sweepInFlight=0;window.sweepWorkerFinishedAt=null;this.native.terminate();}
       };
       navigator.mediaDevices.getUserMedia=async constraints=>{
         window.sweepCameraRequests.push(constraints.video);
@@ -175,7 +181,7 @@ test('counter starts the sweep directly and shows the markers on the frame it me
     await page.waitForFunction(()=>document.querySelector('#counterSweepHint').textContent.includes('3 možných spodků, potvrzeno 0'),null,{timeout:35000});
     assert.equal(await page.evaluate(()=>window.sweepCalibrationFlags[0]),false);
     assert.equal(await page.locator('#counterLiveBadge').textContent(),'Přejezd');
-    assert.equal(await page.locator('#counterCanvas').isVisible(),true);
+    assert.equal(await page.locator('#counterCanvas').isVisible(),false);
     await page.evaluate(()=>{window.sweepWorkerDelay=750;});
     await page.waitForFunction(()=>window.sweepInFlight===1);
     assert.equal(await page.evaluate(async()=>{
@@ -187,15 +193,15 @@ test('counter starts the sweep directly and shows the markers on the frame it me
     await page.evaluate(()=>{window.sweepWorkerDelay=0;});
     await page.waitForFunction(()=>window.sweepInFlight===0);
     for(const shift of [4,8,12,16]){
-      await page.evaluate(offset=>{window.sweepShift=offset;},shift);
-      await page.waitForTimeout(250);
+      const results=await page.evaluate(offset=>{window.sweepShift=offset;return window.sweepWorkerResults;},shift);
+      await page.waitForFunction(results=>window.sweepWorkerResults>=results+2,results);
     }
     await page.waitForFunction(()=>document.querySelector('#counterCount').textContent==='3',null,{timeout:6000});
+    await page.locator('#counterReview').click();
     assert.equal(await page.locator('#counterCanvas').evaluate(canvas=>{
       const pixels=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
       return pixels.some((red,index)=>index%4===0 && pixels[index+1]>red+60 && pixels[index+1]>pixels[index+2]+45);
     }),true);
-    await page.locator('#counterReview').click();
     assert.equal(await page.locator('#counterCanvas').isVisible(),true);
     assert.equal(await page.locator('#counterLiveBadge').textContent(),'Kontrola');
     const snapshot=await page.locator('#counterCanvas').evaluate(canvas=>canvas.toDataURL());
@@ -204,7 +210,7 @@ test('counter starts the sweep directly and shows the markers on the frame it me
     assert.equal(await page.locator('#counterCanvas').evaluate(canvas=>canvas.toDataURL()),snapshot);
     await page.locator('#counterReview').click();
     assert.equal(await page.locator('#counterLiveBadge').textContent(),'Přejezd');
-    assert.equal(await page.locator('#counterCanvas').isVisible(),true);
+    assert.equal(await page.locator('#counterCanvas').isVisible(),false);
     await page.evaluate(()=>{window.sweepPieces=2;window.sweepShift=20;});
     await page.waitForTimeout(650);
     assert.equal(await page.locator('#counterCount').textContent(),'3');
@@ -224,8 +230,8 @@ test('counter starts the sweep directly and shows the markers on the frame it me
     await page.locator('#counterSweepReset').click();
     await page.waitForFunction(()=>document.querySelector('#counterSweepHint').textContent.includes('2 možných spodků'));
     for(const shift of [24,29,35,40]){
-      await page.evaluate(offset=>{window.sweepShift=offset;},shift);
-      await page.waitForTimeout(300);
+      const results=await page.evaluate(offset=>{window.sweepShift=offset;return window.sweepWorkerResults;},shift);
+      await page.waitForFunction(results=>window.sweepWorkerResults>=results+2,results);
     }
     await page.waitForFunction(()=>document.querySelector('#counterCount').textContent==='2',null,{timeout:6000});
     await page.evaluate(()=>{window.sweepShift=20;});
@@ -246,7 +252,7 @@ test('counter starts the sweep directly and shows the markers on the frame it me
     await page.touchscreen.tap(coords.x+157*coords.scale,coords.y+190*coords.scale);
     await page.waitForFunction(()=>document.querySelector('#counterCalibrate').textContent.includes('Velikost spodku nastavena'));
     await page.waitForFunction(()=>window.sweepCalibrationFlags.at(-1)===true);
-    await page.waitForFunction(()=>getComputedStyle(document.querySelector('#counterCanvas')).visibility==='visible');
+    assert.equal(await page.locator('#counterCanvas').isVisible(),false);
     await page.locator('#counterSweepReset').click();
     await page.waitForFunction(()=>document.querySelector('#counterCount').textContent==='0');
     await page.evaluate(()=>{window.previousSweepStream=window.sweepTestStream;});
@@ -266,6 +272,9 @@ test('counter starts the sweep directly and shows the markers on the frame it me
     await page.locator('#counterClose').click();
     assert.equal(await page.evaluate(()=>window.sweepTestStream.getVideoTracks()[0].readyState),'ended');
     assert.equal(await page.evaluate(()=>window.sweepMaxInFlight),1);
+    const gaps=await page.evaluate(()=>window.sweepWorkerGaps);
+    assert.ok(gaps.length>5);
+    assert.ok(gaps.every(gap=>gap>=445),JSON.stringify(gaps));
     assert.deepEqual(errors,[]);
     assert.ok(requests.some(request=>request.url().includes('vendor/opencv-4.13.0.js')));
     assert.ok(requests.every(request=>request.method()==='GET' && new URL(request.url()).origin===new URL(process.env.COUNTER_BASE_URL).origin));

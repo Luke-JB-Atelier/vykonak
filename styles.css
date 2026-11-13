@@ -904,6 +904,7 @@ html {
 }
 
 .counter-stage.shows-snapshot canvas { visibility: visible; }
+.counter-stage.shows-area canvas { visibility: visible; background: transparent; }
 
 .counter-stage video {
   position: absolute;
