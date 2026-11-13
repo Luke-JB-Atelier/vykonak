@@ -488,7 +488,7 @@
     });
     window.addEventListener("load", () => {
       navigator.serviceWorker
-        .register("sw.js?v=932", { updateViaCache: "none" })
+        .register("sw.js?v=933", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
       updateInstallButtons();
@@ -734,12 +734,12 @@
     els.counterLiveBadge.textContent = active ? "Kalibrace" : counterReviewMode ? "Kontrola" : "Přejezd";
     els.counterCalibrationHint.textContent = "1. Klepni na střed dutiny jednoho spodku.";
     els.counterStage.classList.toggle("is-calibrating", counterCalibrationMode);
-    els.counterStage.classList.toggle("shows-snapshot", counterCalibrationMode || counterReviewMode);
     els.counterCalibrationHint.hidden = !counterCalibrationMode;
     els.counterReview.textContent = counterReviewMode ? "Pokračovat v přejezdu" : "Zkontrolovat značky";
     els.counterReview.setAttribute("aria-pressed", String(counterReviewMode));
     updateCounterCalibrationButton();
-    if (counterCalibrationMode || counterReviewMode) drawCounterSnapshot();
+    if (counterLatestFrame) drawCounterSnapshot(counterMeasuredCanvas, counterLatestFrame);
+    else els.counterStage.classList.remove("shows-snapshot");
   }
 
   function updateCounterCalibrationButton() {
@@ -905,7 +905,7 @@
     }
     try {
       if (!counterDetectorWorker) {
-        const worker = new Worker("counter-worker.js?v=932");
+        const worker = new Worker("counter-worker.js?v=933");
         counterDetectorWorker = worker;
         worker.onmessage = ({data}) => {
           if (counterDetectorWorker !== worker) return;
@@ -930,19 +930,19 @@
     } catch { failed(); }
   }
 
-  function drawCounterSnapshot() {
+  function drawCounterSnapshot(source, { region, components }) {
     const output = els.counterCanvas;
-    if (output.width !== counterMeasuredCanvas.width || output.height !== counterMeasuredCanvas.height) {
-      output.width = counterMeasuredCanvas.width;
-      output.height = counterMeasuredCanvas.height;
+    if (output.width !== source.width || output.height !== source.height) {
+      output.width = source.width;
+      output.height = source.height;
     }
     const outputContext = output.getContext("2d");
-    outputContext.drawImage(counterMeasuredCanvas, 0, 0);
-    if (counterReviewMode) {
-      const { region, components } = counterLatestFrame;
+    outputContext.drawImage(source, 0, 0);
+    if (!counterCalibrationMode) {
       if (region) drawCounterRegion(outputContext, region);
       drawCounterComponents(outputContext, components);
     }
+    els.counterStage.classList.add("shows-snapshot");
   }
 
   function showCounterDetection(result) {
@@ -950,6 +950,7 @@
     if (result.aligned) {
       [counterMeasuredCanvas, counterFrameCanvas] = [counterFrameCanvas, counterMeasuredCanvas];
       counterLatestFrame = result;
+      drawCounterSnapshot(counterMeasuredCanvas, result);
       updateCounterCalibrationButton();
       if (!result.detected && !result.count) {
         hint = "V záběru zatím žádný spodek. Zkus Kalibrovat podle jednoho kusu.";
@@ -957,6 +958,8 @@
         const instruction = result.count ? "Přejížděj pomalu přes skupinu." : "Pro potvrzení pomalu posuň kameru do strany.";
         hint = `V záběru ${result.detected} možných spodků, potvrzeno ${result.count}. ${instruction}`;
       }
+    } else {
+      drawCounterSnapshot(counterFrameCanvas, result);
     }
     if (els.counterSweepHint.textContent !== hint) els.counterSweepHint.textContent = hint;
     counterBaseCount = result.count;

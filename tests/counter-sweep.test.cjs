@@ -33,6 +33,22 @@ test('counts a confirmed position once across intermittent detections', () => {
   assert.equal(counter.tracks.length, 11);
 });
 
+test('a slow sweep confirms the same bottom when more frames are processed', () => {
+  const bottom = { x: 180, y: 310, radius: 30, strong: true, rimSupport: 60 };
+  function countBottom(interval, speed, strong) {
+    const counter = new CounterSweep();
+    for (let time = 0; time <= 1800; time += interval) {
+      const shift = time * speed;
+      counter.observe([{ ...bottom, strong }], [1, 0, shift, 0, 1, 0, 0, 0, 1], 540, 960, time);
+    }
+    return counter.count;
+  }
+  assert.equal(countBottom(200, .0065, true), 1);
+  assert.equal(countBottom(100, .0065, true), 1);
+  assert.equal(countBottom(100, 0, true), 0);
+  assert.equal(countBottom(100, .0065, false), 0);
+});
+
 test('a close candidate that started before its neighbor confirmed cannot be counted twice', () => {
   const counter = new CounterSweep();
   const bottom = { x: 180, y: 310, radius: 30, strong: true, rimSupport: 60 };

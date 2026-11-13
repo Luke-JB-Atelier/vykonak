@@ -88,7 +88,7 @@ test('chooses the exact camera when two webcams have the same name and remembers
   } finally { await browser.close(); }
 });
 
-test('counter starts the sweep directly and displays live video independently of the worker',
+test('counter starts the sweep directly and shows the markers on the frame it measured',
   {skip:!process.env.COUNTER_BASE_URL,timeout:55000},async()=>{
   const {chromium}=require('playwright');
   const browser=await chromium.launch({headless:true,...(process.env.EDGE_PATH?{executablePath:process.env.EDGE_PATH}:{})});
@@ -130,11 +130,12 @@ test('counter starts the sweep directly and displays live video independently of
         window.sweepCameraRequests.push(constraints.video);
         const source=document.createElement('canvas');
         const detail=constraints.video.width.ideal===1920;
-        source.width=detail?1600:640;
-        source.height=detail?1200:480;
+        const portrait=constraints.video.width.ideal===1280;
+        const scale=detail?2.5:1;
+        source.width=detail?1600:portrait?360:640;
+        source.height=detail?1200:portrait?640:480;
         const ctx=source.getContext('2d');
         window.sweepSource=source;
-        if(detail)ctx.scale(2.5,2.5);
         const circle=(x,y,r,value)=>{
           ctx.fillStyle=`rgb(${value},${value},${value})`;
           ctx.beginPath();
@@ -142,15 +143,16 @@ test('counter starts the sweep directly and displays live video independently of
           ctx.fill();
         };
         const draw=()=>{
+          ctx.setTransform(scale,0,0,scale,0,0);
           ctx.fillStyle='#bcbcbc';
-          ctx.fillRect(0,0,640,480);
-          for(const [x,y] of [[161,190],[276,229],[392,173]].slice(0,window.sweepPieces)){
+          ctx.fillRect(0,0,source.width/scale,source.height/scale);
+          for(const [x,y] of [[115,190],[220,229],[298,173]].slice(0,window.sweepPieces)){
             circle(x,y,22,104);
             circle(x,y,19,226);
             circle(x,y,14,158);
             circle(x,y,1.6,65);
           }
-          circle(472,230,21,255);
+          circle(265,304,21,255);
         };
         draw();
         const stream=source.captureStream(24);
@@ -164,7 +166,7 @@ test('counter starts the sweep directly and displays live video independently of
     });
     await page.goto(process.env.COUNTER_BASE_URL);
     await page.locator('#openPieceCounter').click();
-    await page.waitForFunction(()=>document.querySelector('#counterResolutionActual').textContent.includes('640 × 480'));
+    await page.waitForFunction(()=>document.querySelector('#counterResolutionActual').textContent.includes('360 × 640'));
     assert.ok(!(await page.locator('#counterCamera option').allTextContents()).includes('Díly'));
     assert.deepEqual(await page.evaluate(()=>window.sweepCameraRequests[0]),{
       facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:960},aspectRatio:{ideal:4/3},frameRate:{ideal:30}
@@ -173,8 +175,7 @@ test('counter starts the sweep directly and displays live video independently of
     await page.waitForFunction(()=>document.querySelector('#counterSweepHint').textContent.includes('3 možných spodků, potvrzeno 0'),null,{timeout:35000});
     assert.equal(await page.evaluate(()=>window.sweepCalibrationFlags[0]),false);
     assert.equal(await page.locator('#counterLiveBadge').textContent(),'Přejezd');
-    assert.equal(await page.locator('#counterCanvas').isVisible(),false);
-    assert.equal(await page.locator('#counterVideo').evaluate(video=>getComputedStyle(video).opacity),'1');
+    assert.equal(await page.locator('#counterCanvas').isVisible(),true);
     await page.evaluate(()=>{window.sweepWorkerDelay=750;});
     await page.waitForFunction(()=>window.sweepInFlight===1);
     assert.equal(await page.evaluate(async()=>{
@@ -190,6 +191,10 @@ test('counter starts the sweep directly and displays live video independently of
       await page.waitForTimeout(250);
     }
     await page.waitForFunction(()=>document.querySelector('#counterCount').textContent==='3',null,{timeout:6000});
+    assert.equal(await page.locator('#counterCanvas').evaluate(canvas=>{
+      const pixels=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
+      return pixels.some((red,index)=>index%4===0 && pixels[index+1]>red+60 && pixels[index+1]>pixels[index+2]+45);
+    }),true);
     await page.locator('#counterReview').click();
     assert.equal(await page.locator('#counterCanvas').isVisible(),true);
     assert.equal(await page.locator('#counterLiveBadge').textContent(),'Kontrola');
@@ -198,12 +203,13 @@ test('counter starts the sweep directly and displays live video independently of
     await page.waitForTimeout(250);
     assert.equal(await page.locator('#counterCanvas').evaluate(canvas=>canvas.toDataURL()),snapshot);
     await page.locator('#counterReview').click();
-    assert.equal(await page.locator('#counterCanvas').isVisible(),false);
+    assert.equal(await page.locator('#counterLiveBadge').textContent(),'Přejezd');
+    assert.equal(await page.locator('#counterCanvas').isVisible(),true);
     await page.evaluate(()=>{window.sweepPieces=2;window.sweepShift=20;});
     await page.waitForTimeout(650);
     assert.equal(await page.locator('#counterCount').textContent(),'3');
-    await page.evaluate(()=>{window.sweepSource.height=450;});
-    await page.waitForFunction(()=>window.sweepAnalysisSizes.at(-1)?.[1]===450);
+    await page.evaluate(()=>{window.sweepSource.height=600;});
+    await page.waitForFunction(()=>window.sweepAnalysisSizes.at(-1)?.[1]===600);
     await page.waitForFunction(()=>document.querySelector('#counterCount').textContent==='0');
     await page.waitForFunction(()=>!document.querySelector('#counterCalibrate').disabled);
     await page.locator('#counterCalibrate').click();
@@ -213,11 +219,11 @@ test('counter starts the sweep directly and displays live video independently of
       const scale=Math.min(rect.width/canvas.width,rect.height/canvas.height);
       return {x:rect.x+(rect.width-canvas.width*scale)/2,y:rect.y+(rect.height-canvas.height*scale)/2,scale};
     });
-    await page.touchscreen.tap(coords.x+181*coords.scale,coords.y+190*coords.scale);
-    await page.touchscreen.tap(coords.x+203*coords.scale,coords.y+190*coords.scale);
+    await page.touchscreen.tap(coords.x+135*coords.scale,coords.y+190*coords.scale);
+    await page.touchscreen.tap(coords.x+157*coords.scale,coords.y+190*coords.scale);
     await page.waitForFunction(()=>document.querySelector('#counterCalibrate').textContent.includes('Velikost spodku nastavena'));
     await page.waitForFunction(()=>window.sweepCalibrationFlags.at(-1)===true);
-    assert.equal(await page.locator('#counterCanvas').isVisible(),false);
+    await page.waitForFunction(()=>getComputedStyle(document.querySelector('#counterCanvas')).visibility==='visible');
     await page.locator('#counterSweepReset').click();
     await page.waitForFunction(()=>document.querySelector('#counterCount').textContent==='0');
     await page.evaluate(()=>{window.previousSweepStream=window.sweepTestStream;});

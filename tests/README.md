@@ -3,7 +3,7 @@
 Přejezd: `node --test tests/counter-sweep.test.cjs`. Test ověřuje
 potvrzení pozice z více pohledů, dočasně chybějící detekci, opakovanou značku,
 simulovaný přepal, stín u spodku i v jeho dutině a zachování počtu při výpadku
-zarovnání.
+zarovnání. Pomalý přejezd se ověřuje při dvou rychlostech zpracování.
 
 Přejezd používá oficiální sestavení [OpenCV.js 4.13.0](https://docs.opencv.org/4.13.0/opencv.js)
 z adresáře `vendor`. Worker je načítá při otevření počítadla.
@@ -12,8 +12,8 @@ Pro test kamery spusť místní HTTP server, zpřístupni balíček Playwright v
 a nastav `COUNTER_BASE_URL` na adresu aplikace. Případně nastav `EDGE_PATH` na
 prohlížeč Chromium/Edge. Potom spusť `node --test tests/counter-camera.test.cjs`.
 Bez `COUNTER_BASE_URL` se test kamery přeskočí. Používá generovaný kamerový tok,
-včetně uměle pomalého workeru. Ověřuje živý obraz během výpočtu, jediný
-rozpracovaný snímek, kontrolu značek, kalibraci a přepnutí rozlišení.
+včetně uměle pomalého workeru. Ověřuje živý vstup kamery, jediný rozpracovaný
+snímek, značky ve zpracovaném obraze, kalibraci a přepnutí rozlišení.
 
 ## Výsledky dřívějšího počítadla z verze 9.23
 

@@ -5,6 +5,7 @@
   const patchCenter = (patchSize - 1) / 2;
   const minimumConfirmationTime = 350;
   const observationWindow = 7;
+  const viewHistoryMs = 1200;
   const sampleX = new Float32Array(patchSize ** 2);
   const sampleY = new Float32Array(sampleX.length);
   const interior = [], rim = [], glare = [];
@@ -282,8 +283,12 @@
       this.tracks.forEach((track, trackIndex) => {
         track.visible = visible(project(track.center, inverse));
         if (track.visible && !track.confirmed) {
-          track.observations.push({ time, strong: false });
-          if (track.observations.length > observationWindow) track.observations.shift();
+          const observations = track.observations;
+          observations.push({ time, strong: false });
+          // A faster worker must not shorten the time available to see the same part move.
+          while (observations.length > observationWindow && time - observations[0].time > viewHistoryMs) {
+            observations.shift();
+          }
         }
         if (track.visible) hits.forEach((hit, hitIndex) => {
           if (closeTo(track.center, hit)) pairs.push({ trackIndex, hitIndex, gap: distance(track.center, hit) });
@@ -308,14 +313,16 @@
         if (track.confirmed) continue;
         const view = project(track.initialCenter, inverse);
         Object.assign(track.observations.at(-1), { strong: true, view, rimSupport: hit.rimSupport });
-        const strongViews = track.observations.filter(observation => observation.strong);
+        const recentObservations = track.observations.slice(-observationWindow);
+        const strongViews = recentObservations.filter(observation => observation.strong);
         const first = strongViews[0];
-        const variedView = strongViews.some(observation => distance(observation.view, view) >= Math.max(4, .20 * hit.radius));
+        const variedView = track.observations.some(observation => observation.strong &&
+          distance(observation.view, view) >= Math.max(4, .20 * hit.radius));
         const matchesConfirmedSize = groupRadius !== null && track.center.radius >= .8 * groupRadius &&
           track.center.radius <= 1.2 * groupRadius;
         const minimumShare = matchesConfirmedSize ? .42 : .5;
         if (strongViews.length >= 3 && time - first.time >= minimumConfirmationTime && variedView &&
-            strongViews.length / track.observations.length >= minimumShare) {
+            strongViews.length / recentObservations.length >= minimumShare) {
           ready.push({ track, quality: percentile(strongViews.map(observation => observation.rimSupport), .5) });
         }
       }
