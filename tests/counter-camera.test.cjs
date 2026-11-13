@@ -99,7 +99,8 @@ test('live video keeps moving and a short sweep still confirms the measured piec
     page.on('request',request=>requests.push(request));
     await page.addInitScript(()=>{
       window.sweepShift=0;
-      window.sweepPieces=3;
+      // Begin the real camera pipeline with no visible pieces.
+      window.sweepPieces=0;
       window.sweepCameraRequests=[];
       window.sweepWorkerDelay=0;
       window.sweepInFlight=0;
@@ -185,6 +186,10 @@ test('live video keeps moving and a short sweep still confirms the measured piec
       facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:960},aspectRatio:{ideal:4/3},frameRate:{ideal:30}
     });
     assert.equal(await page.locator('#counterSweep, #counterSeparate').count(),0);
+    await page.waitForFunction(()=>window.sweepWorkerResults>=3,null,{timeout:35000});
+    assert.equal(await page.locator('#counterCount').textContent(),'0');
+    assert.match(await page.locator('#counterSweepHint').textContent(),/V záběru zatím žádný spodek/);
+    await page.evaluate(()=>{window.sweepPieces=3;});
     await page.waitForFunction(()=>document.querySelector('#counterSweepHint').textContent.includes('3 možných spodků, potvrzeno 0'),null,{timeout:35000});
     assert.equal(await page.evaluate(()=>window.sweepCalibrationFlags[0]),false);
     assert.equal(await page.locator('#counterLiveBadge').textContent(),'Přejezd');
@@ -266,6 +271,7 @@ test('live video keeps moving and a short sweep still confirms the measured piec
     await page.locator('#counterResolution').selectOption('light');
     await page.waitForFunction(()=>window.sweepCameraRequests.length===2);
     await page.waitForFunction(()=>document.querySelector('#counterResolutionActual').textContent.includes('640 × 480'));
+    await page.waitForFunction(()=>window.sweepAnalysisSizes.some(([width,height])=>width===640 && height===480));
     assert.deepEqual(await page.evaluate(()=>window.sweepCameraRequests[1]),{
       facingMode:{ideal:'environment'},width:{ideal:800},height:{ideal:600},aspectRatio:{ideal:4/3},frameRate:{ideal:24}
     });
@@ -274,6 +280,7 @@ test('live video keeps moving and a short sweep still confirms the measured piec
     await page.locator('#counterResolution').selectOption('detail');
     await page.waitForFunction(()=>document.querySelector('#counterResolutionActual').textContent.includes('1600 × 1200'));
     await page.waitForFunction(()=>!document.querySelector('#counterReview').disabled);
+    await page.waitForFunction(()=>window.sweepAnalysisSizes.some(([width,height])=>width===1280 && height===960));
     await page.locator('#counterReview').click();
     assert.equal(await page.locator('#counterCanvas').evaluate(canvas=>canvas.width),1280);
     await page.locator('#counterClose').click();
