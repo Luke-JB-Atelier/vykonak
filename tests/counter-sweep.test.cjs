@@ -154,3 +154,39 @@ test('stays at 11 in a generated sweep with glare, a cast shadow and an unaligna
     scene.delete(); counter.previous?.delete(); counter.reference?.delete();
   }
 });
+
+test('can start a sweep on blank paper and then move over the pieces', { timeout: 20000 }, async () => {
+  const { cv } = await loadOpenCv();
+  const width = 360, height = 640;
+  const gray = value => new cv.Scalar(value, value, value, 255);
+  const scene = new cv.Mat(height, width, cv.CV_8UC4, gray(188));
+  const counter = new CounterSweep(cv);
+  const options = { radiusRatio: .035, sensitivity: 55 };
+  try {
+    for (let time = 0; time <= 400; time += 200) {
+      const result = counter.process(scene.data, width, height, { ...options, time });
+      assert.equal(result.count, 0);
+      assert.equal(result.detected, 0);
+      assert.equal(result.aligned, true);
+      assert.equal(counter.reference, undefined, 'blank frame must not become reference');
+      assert.equal(counter.previous, undefined, 'blank frame must not become tracking frame');
+    }
+    for (const [index, shift] of [0, 5, 10, 15, 20].entries()) {
+      scene.setTo(gray(188));
+      for (const [x, y] of [[104, 197], [170, 236], [246, 188]]) {
+        const center = new cv.Point(x + shift, y);
+        cv.circle(scene, center, 22, gray(104), -1);
+        cv.circle(scene, center, 19, gray(226), -1);
+        cv.circle(scene, center, 14, gray(158), -1);
+        cv.circle(scene, center, 2, gray(65), -1);
+      }
+      const result = counter.process(scene.data, width, height, { ...options, time: 600 + 200 * index });
+      assert.equal(result.aligned, true);
+      assert.equal(result.detected, 3);
+    }
+    assert.equal(counter.count, 3);
+    assert.ok(counter.reference, 'first detected pieces become the reference');
+  } finally {
+    scene.delete(); counter.previous?.delete(); counter.reference?.delete();
+  }
+});
